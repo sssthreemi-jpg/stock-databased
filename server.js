@@ -1151,18 +1151,24 @@ const server = http.createServer(async (req, res) => {
 
       // 차트 데이터에서 이동평균 계산 — ai-report와 완전히 동일한 방식
       let ma20 = 0, ma60 = 0, ma5 = 0;
+      let _chartDebug = { status: 'not run', keys: [], len: 0 };
       try {
+        _chartDebug.status = yearChartRes.status;
         if (yearChartRes.status === 'fulfilled') {
           const chartRaw = JSON.parse(yearChartRes.value.data);
-          const closes = (chartRaw.priceInfos || chartRaw || [])
-            .map(p => pn(p.closePrice || p.close_price || p))
-            .filter(p => p > 0);
+          _chartDebug.keys = Object.keys(chartRaw || {}).slice(0, 10);
+          _chartDebug.isArray = Array.isArray(chartRaw);
+          const arr = chartRaw.priceInfos || chartRaw.chartInfos || (Array.isArray(chartRaw) ? chartRaw : []);
+          _chartDebug.arrLen = arr.length;
+          if (arr.length > 0) _chartDebug.firstItem = arr[0];
+          const closes = arr.map(p => pn(p.closePrice || p.close_price || p.close || p)).filter(p => p > 0);
+          _chartDebug.len = closes.length;
           if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
           if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
           if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
           else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
         }
-      } catch (_) {}
+      } catch (e) { _chartDebug.error = e.message; }
 
       // ROE·부채비율 보강: annualData rowList에서 가져오기
       let roeVal = roe, debtVal = debtRatio;
