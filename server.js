@@ -1095,6 +1095,358 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── 종합 스코어링: /api/scoring?code=005930
+  if (parsedUrl.pathname === '/api/scoring') {
+    const codeParam = parsedUrl.searchParams.get('code') || '';
+    const nameParam = parsedUrl.searchParams.get('name') || '';
+    if (!codeParam && !nameParam) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'code or name required' }));
+      return;
+    }
+    try {
+      let stockCode = codeParam;
+      let stockName = nameParam;
+      if (!stockCode && stockName) {
+        const r = await proxyRequest(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(stockName)}&target=stock`);
+        const d = JSON.parse(r.data);
+        const item = (d.items?.[0] || d.result?.items?.[0])?.[0];
+        if (item) { stockCode = item[0]; stockName = item[1]; }
+      }
+      if (!stockCode) throw new Error('종목코드를 찾을 수 없습니다');
+
+      const [basicRes, integRes, quarterRes, yearChartRes, annualRes] = await Promise.allSettled([
+        proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/finance/quarter`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/yearChart`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/finance/annual`),
+      ]);
+
+      let basic = null, integ = null, quarterData = null, annualData = null, yearChart = null;
+      try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
+      try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
+      try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
+      try { if (annualRes.status === 'fulfilled') annualData = JSON.parse(annualRes.value.data); } catch (_) {}
+      try { if (yearChartRes.status === 'fulfilled') yearChart = JSON.parse(yearChartRes.value.data); } catch (_) {}
+
+      function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
+
+      stockName = basic?.stockName || stockName;
+      const price = pn(basic?.closePrice);
+      const marketType = basic?.stockExchangeType?.name || '';
+      const sector = basic?.industryCodeType?.name || '';
+      const direction = basic?.compareToPreviousPrice?.name || '';
+      const rawRate = pn(basic?.fluctuationsRatio);
+      const changeRate = (direction === 'FALLING' || direction === 'LOWER_LIMIT') ? -Math.abs(rawRate) : rawRate;
+
+      // totalInfos 파싱
+      const infos = {};
+      if (integ?.totalInfos) integ.totalInfos.forEach(item => { if (item.code || item.key) infos[item.code || item.key] = item.value; });
+      const per = pn(infos.per), pbr = pn(infos.pbr), eps = pn(infos.eps), roe = pn(infos.roe);
+      const high52 = pn(infos.highPriceOf52Weeks), low52 = pn(infos.lowPriceOf52Weeks);
+      const marketCap = infos.marketValue || '';
+      const divYield = pn(infos.dividendYieldRatio);
+      const debtRatio = pn(infos.debtRatio);
+
+      // 차트 데이터에서 이동평균 계산
+      const chartData = yearChart?.priceInfos || yearChart?.chartInfos || [];
+      const closes = chartData.map(d => pn(d.closePrice || d.close)).filter(v => v > 0);
+      const volumes = chartData.map(d => pn(d.volume || d.accumulatedTradingVolume)).filter(v => v > 0);
+      const recent = closes.slice(-60);
+      const ma20 = recent.length >= 20 ? recent.slice(-20).reduce((a,b)=>a+b,0)/20 : 0;
+      const ma60 = recent.length >= 60 ? recent.reduce((a,b)=>a+b,0)/60 : 0;
+      const ma5  = recent.length >= 5  ? recent.slice(-5).reduce((a,b)=>a+b,0)/5  : 0;
+      const recentVol = volumes.slice(-5);
+      const avgVol20  = volumes.slice(-20).length > 0 ? volumes.slice(-20).reduce((a,b)=>a+b,0)/20 : 0;
+      const currentVol = recentVol.length > 0 ? recentVol[recentVol.length-1] : 0;
+
+      // 분기 실적
+      let revenue = 0, revPrev = 0, opProfit = 0, opPrev = 0, netIncome = 0;
+      let revenueGrowth = 0, opGrowth = 0, opMargin = 0;
+      try {
+        const qfi = quarterData?.financeInfo;
+        if (qfi) {
+          const confirmed = (qfi.trTitleList||[]).filter(t=>t.isConsensus==='N').map(t=>t.key).sort().reverse();
+          if (confirmed.length >= 1) {
+            const k1 = confirmed[0];
+            for (const row of (qfi.rowList||[])) {
+              const col = row.columns?.[k1]; if (!col) continue;
+              if (row.title === '매출액') revenue = pn(col.value);
+              if (row.title === '영업이익') opProfit = pn(col.value);
+              if (row.title === '당기순이익') netIncome = pn(col.value);
+            }
+          }
+          if (confirmed.length >= 2) {
+            const k2 = confirmed[1];
+            for (const row of (qfi.rowList||[])) {
+              const col = row.columns?.[k2]; if (!col) continue;
+              if (row.title === '매출액') revPrev = pn(col.value);
+              if (row.title === '영업이익') opPrev = pn(col.value);
+            }
+          }
+          if (revPrev > 0) revenueGrowth = (revenue - revPrev) / revPrev * 100;
+          if (opPrev > 0) opGrowth = (opProfit - opPrev) / opPrev * 100;
+          if (revenue > 0) opMargin = opProfit / revenue * 100;
+        }
+      } catch (_) {}
+
+      // ── 기술적 분석 스코어 (30점) ──
+      let techScore = 0;
+      const techDetail = {};
+
+      // 1. 이동평균 배열 (6점): MA5 > MA20 > MA60 정배열
+      let maScore = 0;
+      if (ma5 > 0 && ma20 > 0 && ma60 > 0 && price > 0) {
+        if (price > ma5) maScore += 1;
+        if (ma5 > ma20) maScore += 2;
+        if (ma20 > ma60) maScore += 2;
+        if (price > ma60) maScore += 1;
+      } else if (ma20 > 0) {
+        if (price > ma20) maScore += 3;
+        else maScore += 1;
+      }
+      techDetail.ma = { score: maScore, max: 6, label: '이동평균 배열', desc: `MA5(${Math.round(ma5).toLocaleString()}) MA20(${Math.round(ma20).toLocaleString()}) MA60(${Math.round(ma60).toLocaleString()})` };
+      techScore += maScore;
+
+      // 2. MA20 괴리율 (6점): 너무 멀면 감점
+      let divScore = 3;
+      if (ma20 > 0 && price > 0) {
+        const div = (price - ma20) / ma20 * 100;
+        if (div >= -3 && div <= 5) divScore = 6;
+        else if (div >= -8 && div <= 12) divScore = 4;
+        else if (div >= -15 && div <= 20) divScore = 2;
+        else divScore = 0;
+        techDetail.divergence = { score: divScore, max: 6, label: 'MA20 괴리율', desc: `현재가 MA20 대비 ${div.toFixed(1)}%` };
+      } else {
+        techDetail.divergence = { score: divScore, max: 6, label: 'MA20 괴리율', desc: '데이터 부족' };
+      }
+      techScore += divScore;
+
+      // 3. 52주 위치 (5점)
+      let pos52Score = 2;
+      if (high52 > 0 && low52 > 0 && price > 0) {
+        const pos = (price - low52) / (high52 - low52) * 100;
+        if (pos >= 30 && pos <= 70) pos52Score = 5;
+        else if (pos >= 20 && pos <= 80) pos52Score = 4;
+        else if (pos >= 10 && pos <= 90) pos52Score = 3;
+        else pos52Score = 1;
+        techDetail.pos52 = { score: pos52Score, max: 5, label: '52주 위치', desc: `52주 범위 내 ${pos.toFixed(0)}% 위치` };
+      } else {
+        techDetail.pos52 = { score: pos52Score, max: 5, label: '52주 위치', desc: '데이터 부족' };
+      }
+      techScore += pos52Score;
+
+      // 4. 모멘텀 등락률 (5점)
+      let momScore = 2;
+      if (changeRate > 3) momScore = 5;
+      else if (changeRate > 1) momScore = 4;
+      else if (changeRate >= -1) momScore = 3;
+      else if (changeRate >= -3) momScore = 2;
+      else momScore = 0;
+      techDetail.momentum = { score: momScore, max: 5, label: '가격 모멘텀', desc: `당일 등락 ${changeRate > 0 ? '+' : ''}${changeRate.toFixed(2)}%` };
+      techScore += momScore;
+
+      // 5. 거래량 (8점)
+      let volScore = 3;
+      if (avgVol20 > 0 && currentVol > 0) {
+        const volRatio = currentVol / avgVol20;
+        if (volRatio >= 2) volScore = 8;
+        else if (volRatio >= 1.5) volScore = 6;
+        else if (volRatio >= 1) volScore = 4;
+        else volScore = 2;
+        techDetail.volume = { score: volScore, max: 8, label: '거래량', desc: `20일 평균 대비 ${(volRatio*100).toFixed(0)}%` };
+      } else {
+        techDetail.volume = { score: volScore, max: 8, label: '거래량', desc: '데이터 부족' };
+      }
+      techScore += volScore;
+
+      // ── 펀더멘탈 스코어 (50점) ──
+      let fundScore = 0;
+      const fundDetail = {};
+
+      // 1. PER (8점)
+      let perScore = 0;
+      if (per > 0) {
+        if (per <= 10) perScore = 8;
+        else if (per <= 15) perScore = 7;
+        else if (per <= 20) perScore = 5;
+        else if (per <= 30) perScore = 3;
+        else if (per <= 50) perScore = 1;
+        else perScore = 0;
+        fundDetail.per = { score: perScore, max: 8, label: 'PER', desc: `${per.toFixed(1)}배` };
+      } else {
+        fundDetail.per = { score: 0, max: 8, label: 'PER', desc: '적자/데이터 없음' };
+      }
+      fundScore += perScore;
+
+      // 2. PBR (7점)
+      let pbrScore = 0;
+      if (pbr > 0) {
+        if (pbr <= 1) pbrScore = 7;
+        else if (pbr <= 1.5) pbrScore = 6;
+        else if (pbr <= 2) pbrScore = 4;
+        else if (pbr <= 3) pbrScore = 2;
+        else pbrScore = 0;
+        fundDetail.pbr = { score: pbrScore, max: 7, label: 'PBR', desc: `${pbr.toFixed(2)}배` };
+      } else {
+        fundDetail.pbr = { score: 0, max: 7, label: 'PBR', desc: '데이터 없음' };
+      }
+      fundScore += pbrScore;
+
+      // 3. ROE (5점)
+      let roeScore = 0;
+      if (roe > 0) {
+        if (roe >= 20) roeScore = 5;
+        else if (roe >= 15) roeScore = 4;
+        else if (roe >= 10) roeScore = 3;
+        else if (roe >= 5) roeScore = 2;
+        else roeScore = 1;
+        fundDetail.roe = { score: roeScore, max: 5, label: 'ROE', desc: `${roe.toFixed(1)}%` };
+      } else {
+        fundDetail.roe = { score: 0, max: 5, label: 'ROE', desc: '적자/데이터 없음' };
+      }
+      fundScore += roeScore;
+
+      // 4. 매출 성장률 (6점)
+      let revGrowthScore = 0;
+      if (revPrev > 0) {
+        if (revenueGrowth >= 20) revGrowthScore = 6;
+        else if (revenueGrowth >= 10) revGrowthScore = 5;
+        else if (revenueGrowth >= 5) revGrowthScore = 4;
+        else if (revenueGrowth >= 0) revGrowthScore = 3;
+        else if (revenueGrowth >= -10) revGrowthScore = 1;
+        else revGrowthScore = 0;
+        fundDetail.revGrowth = { score: revGrowthScore, max: 6, label: '매출 성장률', desc: `${revenueGrowth.toFixed(1)}% (전분기 대비)` };
+      } else {
+        revGrowthScore = 2;
+        fundDetail.revGrowth = { score: revGrowthScore, max: 6, label: '매출 성장률', desc: '데이터 부족' };
+      }
+      fundScore += revGrowthScore;
+
+      // 5. 영업이익 성장률 (6점)
+      let opGrowthScore = 0;
+      if (opPrev !== 0) {
+        if (opGrowth >= 30) opGrowthScore = 6;
+        else if (opGrowth >= 15) opGrowthScore = 5;
+        else if (opGrowth >= 5) opGrowthScore = 4;
+        else if (opGrowth >= 0) opGrowthScore = 3;
+        else if (opGrowth >= -20) opGrowthScore = 1;
+        else opGrowthScore = 0;
+        fundDetail.opGrowth = { score: opGrowthScore, max: 6, label: '영업이익 성장률', desc: `${opGrowth.toFixed(1)}% (전분기 대비)` };
+      } else {
+        opGrowthScore = 2;
+        fundDetail.opGrowth = { score: opGrowthScore, max: 6, label: '영업이익 성장률', desc: '데이터 부족' };
+      }
+      fundScore += opGrowthScore;
+
+      // 6. 영업이익률 (5점)
+      let opMarginScore = 0;
+      if (revenue > 0) {
+        if (opMargin >= 20) opMarginScore = 5;
+        else if (opMargin >= 10) opMarginScore = 4;
+        else if (opMargin >= 5) opMarginScore = 3;
+        else if (opMargin >= 0) opMarginScore = 1;
+        else opMarginScore = 0;
+        fundDetail.opMargin = { score: opMarginScore, max: 5, label: '영업이익률', desc: `${opMargin.toFixed(1)}%` };
+      } else {
+        opMarginScore = 2;
+        fundDetail.opMargin = { score: opMarginScore, max: 5, label: '영업이익률', desc: '데이터 부족' };
+      }
+      fundScore += opMarginScore;
+
+      // 7. 부채비율 (4점)
+      let debtScore = 0;
+      if (debtRatio > 0) {
+        if (debtRatio <= 50) debtScore = 4;
+        else if (debtRatio <= 100) debtScore = 3;
+        else if (debtRatio <= 200) debtScore = 2;
+        else if (debtRatio <= 400) debtScore = 1;
+        else debtScore = 0;
+        fundDetail.debt = { score: debtScore, max: 4, label: '부채비율', desc: `${debtRatio.toFixed(0)}%` };
+      } else {
+        debtScore = 2;
+        fundDetail.debt = { score: debtScore, max: 4, label: '부채비율', desc: '데이터 부족' };
+      }
+      fundScore += debtScore;
+
+      // 8. 배당수익률 (4점)
+      let divScore2 = 0;
+      if (divYield > 0) {
+        if (divYield >= 4) divScore2 = 4;
+        else if (divYield >= 2) divScore2 = 3;
+        else if (divYield >= 1) divScore2 = 2;
+        else divScore2 = 1;
+        fundDetail.dividend = { score: divScore2, max: 4, label: '배당수익률', desc: `${divYield.toFixed(2)}%` };
+      } else {
+        fundDetail.dividend = { score: 0, max: 4, label: '배당수익률', desc: '무배당' };
+      }
+      fundScore += divScore2;
+
+      // 9. EPS 양수 여부 (5점)
+      let epsScore = eps > 0 ? 5 : 0;
+      fundDetail.eps = { score: epsScore, max: 5, label: 'EPS (흑자여부)', desc: eps > 0 ? `${Math.round(eps).toLocaleString()}원` : '적자' };
+      fundScore += epsScore;
+
+      // ── 감성 스코어 (20점): 뉴스 키워드 기반 ──
+      let sentScore = 10; // 중립 기본
+      const sentDetail = {};
+      try {
+        const newsRes2 = await proxyRequestEucKr(`https://finance.naver.com/item/news_news.naver?code=${stockCode}&page=1`);
+        const newsHtml = newsRes2.data;
+        const titlePat = /<td class="title"[^>]*>\s*<a[^>]*>([^<]+)<\/a>/g;
+        const titles = [];
+        let nm;
+        while ((nm = titlePat.exec(newsHtml)) !== null && titles.length < 10) titles.push(nm[1].trim());
+
+        const posKw = ['급등','상승','호실적','신고가','매수','수주','흑자전환','목표가 상향','어닝서프라이즈','수출 증가','성장','호재','계약','협약','기대'];
+        const negKw = ['급락','하락','적자','손실','리스크','위기','실망','매도','목표가 하향','어닝쇼크','악재','소송','규제','우려'];
+        let posCount = 0, negCount = 0;
+        titles.forEach(t => {
+          posKw.forEach(k => { if (t.includes(k)) posCount++; });
+          negKw.forEach(k => { if (t.includes(k)) negCount++; });
+        });
+        const sentDiff = posCount - negCount;
+        if (sentDiff >= 3) sentScore = 20;
+        else if (sentDiff === 2) sentScore = 17;
+        else if (sentDiff === 1) sentScore = 14;
+        else if (sentDiff === 0) sentScore = 10;
+        else if (sentDiff === -1) sentScore = 7;
+        else if (sentDiff === -2) sentScore = 4;
+        else sentScore = 2;
+        sentDetail.news = { score: sentScore, max: 20, label: '뉴스 감성', desc: `긍정 ${posCount}건 / 부정 ${negCount}건 (${titles.length}개 기사 분석)` };
+      } catch (_) {
+        sentDetail.news = { score: sentScore, max: 20, label: '뉴스 감성', desc: '뉴스 분석 실패 (중립 적용)' };
+      }
+
+      // ── 종합 스코어 ──
+      const totalScore = Math.round(techScore + fundScore + sentScore);
+      let grade = 'F';
+      if (totalScore >= 90) grade = 'A+';
+      else if (totalScore >= 80) grade = 'A';
+      else if (totalScore >= 70) grade = 'B+';
+      else if (totalScore >= 60) grade = 'B';
+      else if (totalScore >= 50) grade = 'C+';
+      else if (totalScore >= 40) grade = 'C';
+      else if (totalScore >= 30) grade = 'D';
+      else grade = 'F';
+
+      const result = {
+        code: stockCode, name: stockName, price, changeRate, marketType, sector,
+        per, pbr, roe, eps, divYield, high52, low52, marketCap,
+        score: { total: totalScore, grade, technical: techScore, fundamental: fundScore, sentiment: sentScore },
+        techDetail, fundDetail, sentDetail,
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // 정적 파일 서빙
   let filePath = parsedUrl.pathname === '/' ? '/stock-dashboard.html' : parsedUrl.pathname;
   filePath = path.join(__dirname, filePath);
