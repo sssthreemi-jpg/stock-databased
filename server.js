@@ -191,17 +191,23 @@ const server = http.createServer(async (req, res) => {
 
   // ── 네이버 업종 번호 탐색: GET /api/industry-scan?from=260&to=340
   if (parsedUrl.pathname === '/api/industry-scan') {
-    const no = parseInt(parsedUrl.searchParams.get('no') || '278');
     const mobileBase = 'https://m.stock.naver.com/api';
-    try {
-      const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=5`);
-      const raw = r.data;
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      res.end(raw);
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
+    const nos = [260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335];
+    const result = [];
+    for (const no of nos) {
+      try {
+        const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=3`);
+        if (r.statusCode !== 200) continue;
+        const data = JSON.parse(r.data);
+        const stocks = (data.stocks || []).slice(0, 3).map(s => s.stockName || s.itemCode).filter(Boolean);
+        if (stocks.length > 0) {
+          const name = data.industryCode?.name || data.industryGroupName || data.industryName || '';
+          result.push({ no, name, stocks });
+        }
+      } catch (_) {}
     }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(result, null, 2));
     return;
   }
 
