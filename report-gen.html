@@ -797,6 +797,18 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
     searchInput.focus();
   });
 
+  // ── URL 파라미터로 자동 실행 ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramCode = urlParams.get('code');
+  const paramName = urlParams.get('name');
+  if (paramCode) {
+    selCode = paramCode;
+    selName = paramName || paramCode;
+    searchInput.value = selName;
+    analyzeBtn.disabled = false;
+    run();
+  }
+
 })();
 </script>
 </body>

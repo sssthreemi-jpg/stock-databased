@@ -121,7 +121,8 @@
   tbody tr:nth-child(even) { background: #fafbfd; }
   tbody tr:nth-child(even):hover { background: linear-gradient(90deg, rgba(15,76,129,0.06), rgba(15,76,129,0.02)); }
   td { padding: 12px 16px; font-size: 13px; white-space: nowrap; color: #334155; }
-  .stock-name { font-weight: 600; color: #0f172a; }
+  .stock-name { font-weight: 600; color: #0f172a; cursor: pointer; }
+  .stock-name:hover { color: #0f4c81; text-decoration: underline; }
   .stock-code { font-size: 11px; color: #94a3b8; margin-left: 6px; }
   .price { font-weight: 700; font-variant-numeric: tabular-nums; color: #0f172a; }
   .change-up { color: #dc2626; }
@@ -1068,7 +1069,7 @@ function renderTable(stocks) {
     const ppLabel = s.prevRevenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.prevRevenuePeriod}</span>` : '';
 
     return `<tr>
-      <td><span class="stock-name">${s.name}</span><span class="stock-code">${s.code}</span></td>
+      <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span></td>
       <td class="price">${s.price.toLocaleString()}</td>
       <td class="${chgClass}">${chgSign}${s.change.toLocaleString()} (${chgSign}${s.changePercent}%)</td>
       <td>${volStr}</td>
@@ -1387,6 +1388,10 @@ async function init() {
 }
 
 init();
+
+function openReport(code, name) {
+  window.open(`report-gen.html?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`, '_blank');
+}
 </script>
 </body>
 </html>
