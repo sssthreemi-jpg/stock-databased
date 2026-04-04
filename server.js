@@ -1057,7 +1057,7 @@ const server = http.createServer(async (req, res) => {
       // 재무 프로필
       const profile = { eps, bps, divYield, roe, latestRevenue, latestOp, revPeriod };
 
-      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, fundamental, earnings, analysis };
+      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, fundamental, analysis };
       aiReportCache.set(stockCode, { data: result, ts: Date.now() });
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
