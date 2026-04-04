@@ -219,7 +219,7 @@ const server = http.createServer(async (req, res) => {
         const codes = [];
         for (const no of industryNos) {
           try {
-            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=40`);
+            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=60`);
             const data = JSON.parse(r.data);
             (data.stocks || []).forEach(s => {
               if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
@@ -228,7 +228,7 @@ const server = http.createServer(async (req, res) => {
             });
           } catch (_) {}
         }
-        result[sector] = codes.slice(0, 30);
+        result[sector] = codes.slice(0, 50);
       }
 
       res.writeHead(200, {
