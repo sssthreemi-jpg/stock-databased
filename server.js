@@ -189,6 +189,26 @@ function _doRequestWithCookie(targetUrl, cookie) {
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
 
+  // ── 네이버 업종 번호 탐색: GET /api/industry-scan?from=260&to=340
+  if (parsedUrl.pathname === '/api/industry-scan') {
+    const from = parseInt(parsedUrl.searchParams.get('from') || '260');
+    const to   = parseInt(parsedUrl.searchParams.get('to')   || '340');
+    const mobileBase = 'https://m.stock.naver.com/api';
+    const result = [];
+    for (let no = from; no <= to; no++) {
+      try {
+        const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=3`);
+        const data = JSON.parse(r.data);
+        if (data?.industryCode) {
+          result.push({ no, name: data.industryCode?.name || data.industryName || '', stocks: (data.stocks||[]).slice(0,3).map(s=>s.stockName||s.itemCode) });
+        }
+      } catch (_) {}
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
   // ── 업종별 종목 자동 로드: GET /api/industry?sectors=반도체,바이오,... ──
   if (parsedUrl.pathname === '/api/industry') {
     try {
