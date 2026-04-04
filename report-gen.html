@@ -679,8 +679,17 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
       const thHtml = fundPeriods.map(p =>
         `<th class="${p.isConsensus ? 'consensus' : ''}">${p.title}${p.isConsensus ? ' (E)' : ' (A)'}</th>`
       ).join('');
+      const isMoneyRow = t => t.includes('매출액') || t.includes('순이익') || t.includes('당기순이익') || t.includes('영업이익') || t.includes('EBITDA');
+      const fmtVal = (v, title) => {
+        if (!isMoneyRow(title)) return v;
+        const n = parseFloat(String(v).replace(/,/g, ''));
+        if (isNaN(n) || v === '-') return v;
+        if (Math.abs(n) >= 10000) return (n / 10000).toFixed(1) + '조';
+        return Math.round(n).toLocaleString();
+      };
+      const fmtTitle = t => isMoneyRow(t) ? `${t}<span style="font-size:10px;color:#94a3b8;margin-left:3px;">(억원)</span>` : t;
       const tbodyHtml = fundRows.map(r =>
-        `<tr><td class="label">${r.title}</td>${r.values.map(v => `<td>${v}</td>`).join('')}</tr>`
+        `<tr><td class="label">${fmtTitle(r.title)}</td>${r.values.map(v => `<td>${fmtVal(v, r.title)}</td>`).join('')}</tr>`
       ).join('');
       document.getElementById('fundamentalBody').innerHTML =
         `<table class="fund-table"><thead><tr><th style="text-align:left">주요지표</th>${thHtml}</tr></thead><tbody>${tbodyHtml}</tbody></table>`;

@@ -834,10 +834,10 @@ const server = http.createServer(async (req, res) => {
               }
               if (qRevenue > 0) {
                 fundamental.periods = [{ key: 'current', title: t1?.title || k1, isConsensus: false }];
-                fundamental.rows.unshift({ title: '매출액(억)', values: [qRevenue] });
+                fundamental.rows.unshift({ title: '매출액', values: [qRevenue] });
               }
               if (qNetIncome !== 0) {
-                fundamental.rows.splice(qRevenue > 0 ? 1 : 0, 0, { title: '순이익(억)', values: [qNetIncome] });
+                fundamental.rows.splice(qRevenue > 0 ? 1 : 0, 0, { title: '당기순이익', values: [qNetIncome] });
               }
             }
           }
