@@ -222,7 +222,7 @@ const server = http.createServer(async (req, res) => {
             const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=20`);
             const data = JSON.parse(r.data);
             (data.stocks || []).forEach(s => {
-              if (s.itemCode && !codes.includes(s.itemCode) && !s.itemCode.endsWith('5')) {
+              if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
                 codes.push(s.itemCode);
               }
             });
