@@ -161,6 +161,8 @@
   }
   .filter-reset:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
   .filter-count { font-size: 12px; color: #94a3b8; margin-left: 8px; }
+  .sector-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #e0f2fe; color: #0369a1; margin-left: 5px; vertical-align: middle; white-space: nowrap; }
+  .theme-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #fef3c7; color: #b45309; margin-left: 3px; vertical-align: middle; white-space: nowrap; }
 
   /* ── Report Search ── */
   .report-search-box {
@@ -359,6 +361,12 @@
       <!-- 상세 필터 -->
       <div class="filter-bar" id="filterBar">
         <div class="filter-item">
+          <label>업종</label>
+          <select id="filterSector">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div class="filter-item">
           <label>등락률</label>
           <select id="filterChange">
             <option value="">전체</option>
@@ -437,6 +445,22 @@
 // ══════════════════════════════════════════════════════
 const SECTOR_NAMES = ['반도체','2차전지','바이오','자동차','인터넷/플랫폼','금융','에너지','조선','통신장비','건설','로봇','화장품','우주항공'];
 let SECTOR_CONFIG = {};
+
+// 테마 맵 (종목코드 → 테마)
+const THEME_MAP = {
+  '005930':'AI반도체','000660':'HBM','042700':'AI반도체','079550':'AI반도체','240810':'AI반도체','287410':'AI반도체',
+  '005935':'AI반도체','000670':'디스플레이','034020':'에너지전환','006400':'전기차배터리','051910':'전기차배터리',
+  '373220':'전기차배터리','247540':'전기차배터리','003670':'전기차배터리','096770':'에너지전환','009150':'AI반도체',
+  '035420':'AI플랫폼','035720':'AI플랫폼','259960':'게임','036570':'게임','263750':'게임','112040':'게임',
+  '207940':'바이오시밀러','068270':'바이오시밀러','000271':'mRNA','128940':'신약','326030':'신약','145720':'신약',
+  '005380':'전기차','012330':'전기차','000270':'전기차','006260':'전기차부품','064350':'전기차부품',
+  '055550':'인터넷금융','086790':'인터넷금융','105560':'금융지주','139480':'금융지주','316140':'금융지주',
+  '010950':'에너지전환','267250':'방산','012450':'방산','047810':'방산','015750':'방산',
+  '009540':'조선LNG','010140':'조선LNG','042660':'조선LNG','000120':'물류','011200':'물류',
+  '032830':'로봇AI','277810':'로봇AI','090430':'화장품중국','051900':'생활용품','161890':'화장품중국',
+  '329180':'우주발사체','272210':'우주위성','015020':'우주부품','034730':'지주','000100':'지주',
+};
+
 SECTOR_NAMES.forEach(s => SECTOR_CONFIG[s] = []);
 
 // 네이버 업종 API에서 실시간 종목 로드
@@ -975,6 +999,10 @@ function applyFilters(stocks) {
     );
   }
 
+  // 업종 필터
+  const sectorFilter = document.getElementById('filterSector')?.value || '';
+  if (sectorFilter) filtered = filtered.filter(s => (s.sector || sectorMap[s.code] || '') === sectorFilter);
+
   // 등락률 필터
   const chgFilter = document.getElementById('filterChange')?.value || '';
   if (chgFilter === 'up') filtered = filtered.filter(s => s.changePercent > 0);
@@ -1072,7 +1100,7 @@ function renderTable(stocks) {
     const ppLabel = s.prevRevenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.prevRevenuePeriod}</span>` : '';
 
     return `<tr>
-      <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span></td>
+      <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span>${s.sector ? `<span class="sector-badge">${s.sector}</span>` : ''}${THEME_MAP[s.code] ? `<span class="theme-badge">${THEME_MAP[s.code]}</span>` : ''}</td>
       <td class="price">${s.price.toLocaleString()}</td>
       <td class="${chgClass}">${chgSign}${s.change.toLocaleString()} (${chgSign}${s.changePercent}%)</td>
       <td>${volStr}</td>
@@ -1207,13 +1235,25 @@ document.querySelector('.sort-group').addEventListener('click', e => {
 // ══════════════════════════════════════════════════════
 // FILTER EVENTS
 // ══════════════════════════════════════════════════════
+// 업종 셀렉트 동적 생성
+(function() {
+  const sel = document.getElementById('filterSector');
+  SECTOR_NAMES.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+})();
+
 document.getElementById('filterName').addEventListener('input', () => render());
+document.getElementById('filterSector').addEventListener('change', () => render());
 document.getElementById('filterChange').addEventListener('change', () => render());
 document.getElementById('filterPer').addEventListener('change', () => render());
 document.getElementById('filterMcap').addEventListener('change', () => render());
 document.getElementById('filterUpside').addEventListener('change', () => render());
 document.getElementById('filterReset').addEventListener('click', () => {
   document.getElementById('filterName').value = '';
+  document.getElementById('filterSector').value = '';
   document.getElementById('filterChange').value = '';
   document.getElementById('filterPer').value = '';
   document.getElementById('filterMcap').value = '';
