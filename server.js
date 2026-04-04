@@ -1111,8 +1111,8 @@ const server = http.createServer(async (req, res) => {
       if (!stockCode && stockName) {
         const r = await proxyRequest(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(stockName)}&target=stock`);
         const d = JSON.parse(r.data);
-        const item = (d.items?.[0] || d.result?.items?.[0])?.[0];
-        if (item) { stockCode = item[0]; stockName = item[1]; }
+        const item = (d.items || []).find(i => i.category === 'stock');
+        if (item) { stockCode = item.code; stockName = item.name; }
       }
       if (!stockCode) throw new Error('종목코드를 찾을 수 없습니다');
 
