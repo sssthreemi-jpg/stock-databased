@@ -1150,32 +1150,65 @@ const server = http.createServer(async (req, res) => {
       const debtRatio = pn(infos.debtRatio);
 
       // 차트 데이터에서 이동평균 계산 — ai-report와 완전히 동일한 방식
-      let ma20 = 0, ma60 = 0, ma5 = 0;
-      let _chartDebug = { status: 'not run', keys: [], len: 0 };
+      // ── 이동평균 + 거래량: dealTrendInfos(최근 거래일 기준) 우선 사용 ──
+      let ma20 = 0, ma60 = 0, ma5 = 0, currentVol = 0, avgVol20 = 0;
       try {
-        _chartDebug.status = yearChartRes.status;
-        if (yearChartRes.status === 'fulfilled') {
-          const chartRaw = JSON.parse(yearChartRes.value.data);
-          _chartDebug.keys = Object.keys(chartRaw || {}).slice(0, 10);
-          _chartDebug.isArray = Array.isArray(chartRaw);
-          const arr = chartRaw.priceInfos || chartRaw.chartInfos || (Array.isArray(chartRaw) ? chartRaw : []);
-          _chartDebug.arrLen = arr.length;
-          if (arr.length > 0) _chartDebug.firstItem = arr[0];
-          const closes = arr.map(p => pn(p.closePrice || p.close_price || p.close || p)).filter(p => p > 0);
-          _chartDebug.len = closes.length;
-          if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
-          if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
-          if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
-          else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
+        const deals = integ?.dealTrendInfos || [];
+        if (deals.length > 0) {
+          // dealTrendInfos: 최신순 정렬되어 있음, 각 항목에 closePrice/stockEndPrice + volume
+          const dealCloses = deals
+            .map(d => pn(d.closePrice || d.stockEndPrice || d.endPrice || d.close))
+            .filter(v => v > 0);
+          const dealVols = deals
+            .map(d => pn(d.accumulatedTradingVolume || d.tradingVolume || d.volume))
+            .filter(v => v > 0);
+
+          // 거래량: 가장 최근 거래일 vs 최근 20일 평균
+          if (dealVols.length > 0) {
+            currentVol = dealVols[0]; // 가장 최근 거래일
+            avgVol20 = dealVols.slice(0, 20).reduce((a,b)=>a+b,0) / Math.min(dealVols.length, 20);
+          }
+
+          // dealTrendInfos가 충분하면 MA 계산에 활용 (보통 20~60일치 있음)
+          if (dealCloses.length >= 5) {
+            const rev = [...dealCloses].reverse(); // 오래된 순으로
+            if (rev.length >= 5)  ma5  = rev.slice(-5).reduce((a,b)=>a+b,0)/5;
+            if (rev.length >= 20) ma20 = rev.slice(-20).reduce((a,b)=>a+b,0)/20;
+            if (rev.length >= 60) ma60 = rev.slice(-60).reduce((a,b)=>a+b,0)/60;
+          }
         }
-      } catch (e) { _chartDebug.error = e.message; }
+      } catch (_) {}
+
+      // yearChart로 MA 보완 (dealTrendInfos가 부족할 때)
+      try {
+        if ((ma20 === 0 || ma60 === 0) && yearChartRes.status === 'fulfilled') {
+          const chartRaw = JSON.parse(yearChartRes.value.data);
+          const arr = chartRaw.priceInfos || chartRaw.chartInfos || (Array.isArray(chartRaw) ? chartRaw : []);
+          const closes = arr.map(p => pn(p.closePrice || p.close_price || p.close || p)).filter(p => p > 0);
+          if (closes.length >= 5  && ma5  === 0) ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
+          if (closes.length >= 20 && ma20 === 0) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+          if (closes.length >= 60 && ma60 === 0) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
+          else if (closes.length > 0 && ma60 === 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
+          // yearChart에서 거래량 보완
+          if (avgVol20 === 0) {
+            const vols = arr.map(p => pn(p.accumulatedTradingVolume || p.volume || p.tradingVolume)).filter(v => v > 0);
+            if (vols.length > 0) {
+              currentVol = vols[vols.length-1];
+              avgVol20 = vols.slice(-20).reduce((a,b)=>a+b,0)/Math.min(vols.length, 20);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 휴장일 fallback: basic 당일 거래량 (0이면 무시)
+      if (currentVol === 0) currentVol = pn(basic?.accumulatedTradingVolume);
+      if (avgVol20 === 0 && currentVol > 0) avgVol20 = currentVol;
 
       // ROE·부채비율 보강: annualData rowList에서 가져오기
       let roeVal = roe, debtVal = debtRatio;
       try {
         const fi = annualData?.financeInfo;
         if (fi?.rowList?.length && fi?.trTitleList?.length) {
-          // 가장 최근 확정 컬럼 key
           const lastKey = (fi.trTitleList.filter(t => t.isConsensus !== 'Y').pop() || fi.trTitleList[fi.trTitleList.length-1])?.key;
           if (lastKey) {
             for (const row of fi.rowList) {
@@ -1186,16 +1219,6 @@ const server = http.createServer(async (req, res) => {
             }
           }
         }
-      } catch (_) {}
-
-      // 거래량: basic(당일) vs integration dealTrendInfos(최근 20일 평균)
-      let currentVol = 0, avgVol20 = 0;
-      try {
-        currentVol = pn(basic?.accumulatedTradingVolume);
-        const deals = integ?.dealTrendInfos || [];
-        const volList = deals.slice(0, 20).map(d => pn(d.accumulatedTradingVolume || d.tradingVolume || d.volume)).filter(v => v > 0);
-        if (volList.length > 0) avgVol20 = volList.reduce((a,b)=>a+b,0)/volList.length;
-        if (avgVol20 === 0 && currentVol > 0) avgVol20 = currentVol;
       } catch (_) {}
 
       // 분기 실적
@@ -1473,7 +1496,6 @@ const server = http.createServer(async (req, res) => {
         per, pbr, roe, eps, divYield, high52, low52, marketCap,
         score: { total: totalScore, grade, technical: techScore, fundamental: fundScore, sentiment: sentScore },
         techDetail, fundDetail, sentDetail,
-        _debug: { ma5: Math.round(ma5), ma20: Math.round(ma20), ma60: Math.round(ma60), currentVol, avgVol20: Math.round(avgVol20), chart: _chartDebug },
       };
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
