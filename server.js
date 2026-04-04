@@ -198,7 +198,7 @@ const server = http.createServer(async (req, res) => {
       const SECTOR_MAP = {
         '반도체': [278, 282],        // 반도체 + 전자부품(삼성전기 등)
         '2차전지': [272, 306, 283],  // 화학소재 + 전기장비 + 연료전지
-        '바이오': [286, 281, 316, 261, 268],  // 생물공학 + 의료기기 + 헬스케어서비스 + 제약 + 건강기능식품
+        '바이오': [286, 281, 316, 261, 262, 268, 288],  // 생물공학 + 의료기기 + 헬스케어서비스 + 제약 + 바이오벤처 + 건강기능식품 + 헬스케어IT
         '자동차': [273, 270],        // 자동차 + 자동차부품
         '금융': [321, 330, 301],     // 증권 + 생명보험 + 은행
         '에너지': [295, 313, 325],   // 에너지장비 + 석유가스 + 전력
@@ -220,7 +220,7 @@ const server = http.createServer(async (req, res) => {
         const codes = [];
         for (const no of industryNos) {
           try {
-            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=20`);
+            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=40`);
             const data = JSON.parse(r.data);
             (data.stocks || []).forEach(s => {
               if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
@@ -229,7 +229,7 @@ const server = http.createServer(async (req, res) => {
             });
           } catch (_) {}
         }
-        result[sector] = codes.slice(0, 20);
+        result[sector] = codes.slice(0, 30);
       }
 
       res.writeHead(200, {
