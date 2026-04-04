@@ -219,7 +219,7 @@ const server = http.createServer(async (req, res) => {
         const codes = [];
         for (const no of industryNos) {
           try {
-            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=30&sortType=marketValue&order=desc`);
+            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=30`);
             const data = JSON.parse(r.data);
             (data.stocks || []).forEach(s => {
               if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
