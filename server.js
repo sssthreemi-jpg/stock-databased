@@ -1124,18 +1124,11 @@ const server = http.createServer(async (req, res) => {
         proxyRequest(`${mobileBase}/stock/${stockCode}/finance/annual`),
       ]);
 
-      let basic = null, integ = null, quarterData = null, annualData = null, yearChart = null;
+      let basic = null, integ = null, quarterData = null, annualData = null;
       try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
       try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
       try { if (annualRes.status === 'fulfilled') annualData = JSON.parse(annualRes.value.data); } catch (_) {}
-      try {
-        if (yearChartRes.status === 'fulfilled') {
-          const raw = JSON.parse(yearChartRes.value.data);
-          // API가 { priceInfos: [...] } 또는 배열 직접 반환
-          yearChart = raw?.priceInfos || raw?.chartInfos || (Array.isArray(raw) ? raw : null);
-        }
-      } catch (_) {}
 
       function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
 
@@ -1156,28 +1149,46 @@ const server = http.createServer(async (req, res) => {
       const divYield = pn(infos.dividendYieldRatio);
       const debtRatio = pn(infos.debtRatio);
 
-      // 차트 데이터에서 이동평균 계산
+      // 차트 데이터에서 이동평균 계산 — ai-report와 완전히 동일한 방식
       let ma20 = 0, ma60 = 0, ma5 = 0;
       try {
-        const chartArr = Array.isArray(yearChart) ? yearChart : [];
-        const closes = chartArr
-          .map(d => pn(d.closePrice || d.close_price || d.close || d))
-          .filter(v => v > 0);
-        if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
-        if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
-        if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
-        else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
+        if (yearChartRes.status === 'fulfilled') {
+          const chartRaw = JSON.parse(yearChartRes.value.data);
+          const closes = (chartRaw.priceInfos || chartRaw || [])
+            .map(p => pn(p.closePrice || p.close_price || p))
+            .filter(p => p > 0);
+          if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
+          if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+          if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
+          else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
+        }
       } catch (_) {}
 
-      // 거래량: basic(당일) vs integration dealTrendInfos(5일 평균)
+      // ROE·부채비율 보강: annualData rowList에서 가져오기
+      let roeVal = roe, debtVal = debtRatio;
+      try {
+        const fi = annualData?.financeInfo;
+        if (fi?.rowList?.length && fi?.trTitleList?.length) {
+          // 가장 최근 확정 컬럼 key
+          const lastKey = (fi.trTitleList.filter(t => t.isConsensus !== 'Y').pop() || fi.trTitleList[fi.trTitleList.length-1])?.key;
+          if (lastKey) {
+            for (const row of fi.rowList) {
+              const col = row.columns?.[lastKey];
+              if (!col) continue;
+              if (row.title?.includes('ROE')) roeVal = pn(col.value);
+              if (row.title?.includes('부채비율')) debtVal = pn(col.value);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 거래량: basic(당일) vs integration dealTrendInfos(최근 20일 평균)
       let currentVol = 0, avgVol20 = 0;
       try {
         currentVol = pn(basic?.accumulatedTradingVolume);
         const deals = integ?.dealTrendInfos || [];
-        // dealTrendInfos에 tradingVolume 또는 accumulatedTradingVolume 있을 수 있음
         const volList = deals.slice(0, 20).map(d => pn(d.accumulatedTradingVolume || d.tradingVolume || d.volume)).filter(v => v > 0);
         if (volList.length > 0) avgVol20 = volList.reduce((a,b)=>a+b,0)/volList.length;
-        // avgVol20이 없으면 현재 거래량 자체를 기준으로 중립 처리
         if (avgVol20 === 0 && currentVol > 0) avgVol20 = currentVol;
       } catch (_) {}
 
@@ -1316,15 +1327,15 @@ const server = http.createServer(async (req, res) => {
 
       // 3. ROE (5점)
       let roeScore = 0;
-      if (roe > 0) {
-        if (roe >= 20) roeScore = 5;
-        else if (roe >= 15) roeScore = 4;
-        else if (roe >= 10) roeScore = 3;
-        else if (roe >= 5) roeScore = 2;
+      if (roeVal > 0) {
+        if (roeVal >= 20) roeScore = 5;
+        else if (roeVal >= 15) roeScore = 4;
+        else if (roeVal >= 10) roeScore = 3;
+        else if (roeVal >= 5) roeScore = 2;
         else roeScore = 1;
-        fundDetail.roe = { score: roeScore, max: 5, label: 'ROE', desc: `${roe.toFixed(1)}%` };
+        fundDetail.roe = { score: roeScore, max: 5, label: 'ROE', desc: `${roeVal.toFixed(1)}%` };
       } else {
-        fundDetail.roe = { score: 0, max: 5, label: 'ROE', desc: '적자/데이터 없음' };
+        fundDetail.roe = { score: 0, max: 5, label: 'ROE', desc: '데이터 없음' };
       }
       fundScore += roeScore;
 
@@ -1377,13 +1388,13 @@ const server = http.createServer(async (req, res) => {
 
       // 7. 부채비율 (4점)
       let debtScore = 0;
-      if (debtRatio > 0) {
-        if (debtRatio <= 50) debtScore = 4;
-        else if (debtRatio <= 100) debtScore = 3;
-        else if (debtRatio <= 200) debtScore = 2;
-        else if (debtRatio <= 400) debtScore = 1;
+      if (debtVal > 0) {
+        if (debtVal <= 50) debtScore = 4;
+        else if (debtVal <= 100) debtScore = 3;
+        else if (debtVal <= 200) debtScore = 2;
+        else if (debtVal <= 400) debtScore = 1;
         else debtScore = 0;
-        fundDetail.debt = { score: debtScore, max: 4, label: '부채비율', desc: `${debtRatio.toFixed(0)}%` };
+        fundDetail.debt = { score: debtScore, max: 4, label: '부채비율', desc: `${debtVal.toFixed(0)}%` };
       } else {
         debtScore = 2;
         fundDetail.debt = { score: debtScore, max: 4, label: '부채비율', desc: '데이터 부족' };
