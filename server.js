@@ -23,6 +23,50 @@ const MIME_TYPES = {
   '.ico':  'image/x-icon',
 };
 
+// AI 리포트 캐시 (1시간 TTL)
+const aiReportCache = new Map();
+const AI_CACHE_TTL = 60 * 60 * 1000;
+
+// Claude API 호출
+function callClaude(prompt) {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) { reject(new Error('ANTHROPIC_API_KEY not set')); return; }
+
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const options = {
+      hostname: 'api.anthropic.com',
+      port: 443,
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    const req = https.request(options, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error('Claude 응답 파싱 오류')); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error('Claude API 타임아웃')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 // 동시 요청 제한 (네이버 차단 방지)
 const MAX_CONCURRENT = 15;
 let activeRequests = 0;
@@ -678,6 +722,137 @@ const server = http.createServer(async (req, res) => {
       res.end(result.data);
     } catch (e) {
       res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // AI 분석 리포트: /api/ai-report?code=005930 또는 ?name=삼성전자
+  if (parsedUrl.pathname === '/api/ai-report') {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'ANTHROPIC_API_KEY가 설정되지 않았습니다. Render 환경변수를 확인해주세요.' }));
+      return;
+    }
+
+    const codeParam = parsedUrl.searchParams.get('code');
+    const nameParam = parsedUrl.searchParams.get('name');
+
+    try {
+      const mobileBase = 'https://m.stock.naver.com/api';
+      let stockCode = codeParam || '';
+      let stockName = nameParam || '';
+
+      // 종목명 → 코드 변환
+      if (!stockCode && stockName) {
+        const r = await proxyRequest(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(stockName)}&target=stock`);
+        const d = JSON.parse(r.data);
+        const item = (d.items || []).find(i => i.category === 'stock');
+        if (item) { stockCode = item.code; stockName = item.name; }
+      }
+
+      if (!stockCode) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: '종목을 찾을 수 없습니다.' }));
+        return;
+      }
+
+      // 캐시 확인 (1시간)
+      const cached = aiReportCache.get(stockCode);
+      if (cached && Date.now() - cached.ts < AI_CACHE_TTL) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(cached.data));
+        return;
+      }
+
+      // 병렬로 Naver 데이터 요청
+      const [basicRes, integRes] = await Promise.allSettled([
+        proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
+      ]);
+
+      let basic = null, integ = null;
+      try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
+      try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
+
+      stockName = basic?.stockName || stockName;
+
+      function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
+
+      const price = pn(basic?.closePrice);
+      const direction = basic?.compareToPreviousPrice?.name || '';
+      const rawRate = pn(basic?.fluctuationsRatio);
+      const changeRate = (direction === 'FALLING' || direction === 'LOWER_LIMIT') ? -Math.abs(rawRate) : rawRate;
+
+      let per = 0, pbr = 0, marketCap = '', high52 = 0, low52 = 0;
+      if (integ?.totalInfos) {
+        const infos = {};
+        integ.totalInfos.forEach(item => { if (item.code || item.key) infos[item.code || item.key] = item.value; });
+        per = pn(infos.per);
+        pbr = pn(infos.pbr);
+        marketCap = infos.marketValue || '';
+        high52 = pn(infos.highPriceOf52Weeks);
+        low52 = pn(infos.lowPriceOf52Weeks);
+      }
+
+      const priceFromHigh = high52 > 0 ? ((price - high52) / high52 * 100).toFixed(1) : '-';
+      const priceFromLow  = low52  > 0 ? ((price - low52)  / low52  * 100).toFixed(1) : '-';
+
+      const prompt = `당신은 한국 주식 전문 애널리스트입니다. 아래 ${stockName}(${stockCode}) 데이터를 바탕으로 투자 분석 리포트를 JSON으로 작성하세요.
+
+[종목 데이터]
+현재가: ${price.toLocaleString()}원 (${changeRate > 0 ? '+' : ''}${changeRate.toFixed(2)}%)
+시가총액: ${marketCap || '정보없음'}
+PER: ${per > 0 ? per.toFixed(2) + '배' : '정보없음'}
+PBR: ${pbr > 0 ? pbr.toFixed(2) + '배' : '정보없음'}
+52주 최고가: ${high52 > 0 ? high52.toLocaleString() + '원' : '정보없음'}
+52주 최저가: ${low52 > 0 ? low52.toLocaleString() + '원' : '정보없음'}
+52주 고점 대비: ${priceFromHigh}%
+52주 저점 대비: +${priceFromLow}%
+
+반드시 아래 JSON 형식으로만 응답하세요 (추가 텍스트 없이):
+{
+  "businessStructure": "이 회사의 핵심 사업 구조를 3~4문장으로 설명. 주요 매출원, 경쟁우위, 성장 동력 포함",
+  "bull": ["강세 근거 1 (구체적 수치나 근거 포함)", "강세 근거 2", "강세 근거 3"],
+  "bear": ["약세 근거 1 (구체적 근거)", "약세 근거 2", "약세 근거 3"],
+  "technical": {
+    "buyLine": 매수 진입 권장가 (정수),
+    "target1": 1차 목표가 (정수),
+    "target2": 2차 목표가 (정수),
+    "stopLoss": 손절가 (정수),
+    "comment": "기술적 분석 코멘트 1~2문장"
+  }
+}
+
+기술적 분석 기준:
+- 매수라인: 현재가 대비 3~7% 아래 지지선
+- 1차목표가: 현재가 대비 10~20% 위 저항선
+- 2차목표가: 1차 대비 15~25% 위 (52주 고점 근처)
+- 손절가: 매수라인 대비 5~8% 아래`;
+
+      const claudeResp = await callClaude(prompt);
+      const content = claudeResp.content?.[0]?.text || '{}';
+
+      let analysis;
+      try {
+        const m = content.match(/\{[\s\S]*\}/);
+        analysis = JSON.parse(m ? m[0] : content);
+      } catch (_) {
+        analysis = {
+          businessStructure: 'AI 분석 생성 중 오류가 발생했습니다.',
+          bull: ['분석 실패', '분석 실패', '분석 실패'],
+          bear: ['분석 실패', '분석 실패', '분석 실패'],
+          technical: { buyLine: 0, target1: 0, target2: 0, stopLoss: 0, comment: '' },
+        };
+      }
+
+      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, per, pbr, high52, low52, analysis };
+      aiReportCache.set(stockCode, { data: result, ts: Date.now() });
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: e.message }));
     }
     return;

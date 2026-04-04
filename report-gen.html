@@ -3,367 +3,362 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 증권 리포트 생성기</title>
+<title>AI 증권 리포트</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-    background: #f1f5f9;
-    color: #1e293b;
-    min-height: 100vh;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  min-height: 100vh;
+}
 
-  /* ── Header ── */
-  header {
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 18px 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  }
-  .header-left { display: flex; align-items: center; gap: 16px; }
-  .header-left a.back {
-    font-size: 14px; color: #64748b; text-decoration: none;
-    transition: color 0.15s;
-  }
-  .header-left a.back:hover { color: #0f4c81; }
-  header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -0.5px; }
-  .header-right { display: flex; align-items: center; gap: 12px; }
-  .header-right a {
-    font-size: 13px; color: #64748b; text-decoration: none;
-    padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
-  }
-  .header-right a:hover { background: #f1f5f9; color: #0f4c81; }
+/* ── Header ── */
+header {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 18px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left a {
+  font-size: 14px; color: #64748b; text-decoration: none; transition: color 0.15s;
+}
+.header-left a:hover { color: #0f4c81; }
+header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -0.5px; }
+.header-right { display: flex; gap: 10px; }
+.header-right a {
+  font-size: 13px; color: #64748b; text-decoration: none;
+  padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
+}
+.header-right a:hover { background: #f1f5f9; color: #0f4c81; }
 
-  /* ── Container ── */
-  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+/* ── Container ── */
+.container { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
 
-  /* ── Search Section ── */
-  .search-section {
-    background: #fff; border-radius: 14px; padding: 28px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 24px;
-  }
-  .search-section h2 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
-  .search-row { display: flex; gap: 10px; margin-bottom: 14px; }
-  .search-input-wrap {
-    flex: 1; position: relative;
-  }
-  .search-input-wrap input {
-    width: 100%; padding: 12px 16px; font-size: 15px;
-    border: 2px solid #e2e8f0; border-radius: 10px;
-    outline: none; transition: border-color 0.2s;
-    background: #f8fafc;
-  }
-  .search-input-wrap input:focus { border-color: #0f4c81; background: #fff; }
-  .search-dropdown {
-    position: absolute; top: 100%; left: 0; right: 0;
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100;
-    max-height: 260px; overflow-y: auto; display: none;
-  }
-  .search-dropdown.show { display: block; }
-  .search-dropdown .dd-item {
-    padding: 10px 16px; cursor: pointer; font-size: 14px;
-    display: flex; justify-content: space-between; align-items: center;
-    transition: background 0.1s;
-  }
-  .search-dropdown .dd-item:hover { background: #f1f5f9; }
-  .dd-item .name { font-weight: 600; color: #0f172a; }
-  .dd-item .code { font-size: 12px; color: #94a3b8; }
-  .dd-item .type { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+/* ── Search Box ── */
+.search-box {
+  background: #fff; border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  margin-bottom: 24px;
+}
+.search-box h2 {
+  font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.search-row {
+  display: flex; gap: 10px; margin-bottom: 16px;
+}
+.search-wrap {
+  flex: 1; position: relative;
+}
+.search-wrap input {
+  width: 100%; padding: 13px 18px; font-size: 15px;
+  border: 2px solid #e2e8f0; border-radius: 12px;
+  outline: none; transition: border-color 0.2s;
+  background: #f8fafc; color: #1e293b;
+}
+.search-wrap input:focus { border-color: #0f4c81; background: #fff; }
 
-  .quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .quick-tag {
-    padding: 6px 14px; font-size: 13px; border: 1px solid #e2e8f0;
-    border-radius: 20px; background: #f8fafc; color: #475569;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .quick-tag:hover { border-color: #0f4c81; color: #0f4c81; background: #f0f6ff; }
+.dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100;
+  max-height: 260px; overflow-y: auto; display: none;
+}
+.dropdown.show { display: block; }
+.dd-item {
+  padding: 11px 16px; cursor: pointer; font-size: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: background 0.1s; border-bottom: 1px solid #f8fafc;
+}
+.dd-item:last-child { border: none; }
+.dd-item:hover { background: #f0f6ff; }
+.dd-name { font-weight: 600; color: #0f172a; }
+.dd-code { font-size: 12px; color: #94a3b8; margin-left: 6px; }
+.dd-type { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
 
-  .options-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .options-row select {
-    padding: 8px 14px; font-size: 13px; border: 1px solid #e2e8f0;
-    border-radius: 8px; background: #f8fafc; color: #334155;
-    outline: none; cursor: pointer;
-  }
-  .options-row select:focus { border-color: #0f4c81; }
+.analyze-btn {
+  padding: 13px 32px; font-size: 15px; font-weight: 700;
+  background: linear-gradient(135deg, #0f4c81, #1a6fbf);
+  color: #fff; border: none; border-radius: 12px;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(15,76,129,0.3);
+  white-space: nowrap;
+}
+.analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(15,76,129,0.4); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  .generate-btn {
-    padding: 12px 32px; font-size: 15px; font-weight: 600;
-    background: linear-gradient(135deg, #0f4c81, #1a6fbf);
-    color: #fff; border: none; border-radius: 10px;
-    cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(15,76,129,0.3);
-  }
-  .generate-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(15,76,129,0.4); }
-  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.quick-tags {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.quick-tag {
+  padding: 6px 14px; font-size: 13px; border: 1px solid #e2e8f0;
+  border-radius: 20px; background: #f8fafc; color: #475569;
+  cursor: pointer; transition: all 0.15s;
+}
+.quick-tag:hover { border-color: #0f4c81; color: #0f4c81; background: #f0f6ff; }
 
-  .selected-stock {
-    display: none; align-items: center; gap: 10px;
-    margin-bottom: 14px; padding: 10px 16px;
-    background: #f0f6ff; border: 1px solid #bfdbfe; border-radius: 10px;
-  }
-  .selected-stock.show { display: flex; }
-  .selected-stock .name { font-weight: 700; color: #0f4c81; font-size: 15px; }
-  .selected-stock .code { color: #64748b; font-size: 13px; }
-  .selected-stock .remove {
-    margin-left: auto; cursor: pointer; color: #94a3b8; font-size: 18px;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
-  }
-  .selected-stock .remove:hover { color: #dc2626; }
+/* ── Loading ── */
+.loading-section {
+  display: none; text-align: center; padding: 60px 20px;
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.spinner {
+  width: 44px; height: 44px; border: 4px solid #e2e8f0; border-top-color: #0f4c81;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 16px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+.loading-sub { font-size: 13px; color: #94a3b8; }
 
-  /* ── Progress ── */
-  .progress-section { display: none; margin-bottom: 24px; }
-  .progress-section.show { display: block; }
-  .progress-bar-wrap {
-    background: #e2e8f0; border-radius: 8px; height: 8px;
-    overflow: hidden; margin-bottom: 10px;
-  }
-  .progress-bar {
-    height: 100%; background: linear-gradient(90deg, #0f4c81, #1a6fbf);
-    border-radius: 8px; transition: width 0.3s;
-    width: 0%;
-  }
-  .progress-text { font-size: 13px; color: #64748b; text-align: center; }
+/* ── Error ── */
+.error-section {
+  display: none; padding: 28px 32px; background: #fff;
+  border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border-left: 4px solid #ef4444;
+}
+.error-section p { font-size: 14px; color: #dc2626; }
 
-  /* ── Report ── */
-  .report-section { display: none; }
-  .report-section.show { display: block; }
+/* ── Result ── */
+.result-section { display: none; }
 
-  .report-header {
-    background: #fff; border-radius: 14px; padding: 28px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 20px;
-    text-align: center; position: relative; overflow: hidden;
-  }
-  .report-header::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0;
-    height: 4px; background: linear-gradient(90deg, #0f4c81, #7c3aed, #0891b2);
-  }
-  .report-header h2 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-  .report-header .subtitle { font-size: 14px; color: #64748b; }
-  .report-header .generated-badge {
-    display: inline-block; margin-top: 12px; padding: 4px 14px;
-    font-size: 11px; color: #7c3aed; background: #f3f0ff;
-    border-radius: 20px; font-weight: 600;
-  }
+/* Stock Header */
+.stock-header {
+  background: #fff; border-radius: 16px; padding: 24px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 16px;
+  position: relative; overflow: hidden;
+}
+.stock-header::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 4px; background: linear-gradient(90deg, #0f4c81, #7c3aed, #0891b2);
+}
+.stock-title { display: flex; align-items: baseline; gap: 12px; }
+.stock-name { font-size: 24px; font-weight: 800; color: #0f172a; }
+.stock-code { font-size: 14px; color: #94a3b8; font-weight: 400; }
+.stock-price-box { text-align: right; }
+.stock-price { font-size: 28px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+.stock-change { font-size: 15px; font-weight: 600; margin-top: 2px; }
+.change-up { color: #dc2626; }
+.change-down { color: #2563eb; }
+.change-flat { color: #94a3b8; }
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; background: #f3f0ff; color: #7c3aed;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  border: 1px solid #ddd6fe;
+}
+.ai-dot { width: 6px; height: 6px; background: #7c3aed; border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
 
-  .report-actions {
-    display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 16px;
-  }
-  .report-actions button {
-    padding: 8px 18px; font-size: 13px; border-radius: 8px;
-    cursor: pointer; transition: all 0.15s; font-weight: 600;
-  }
-  .btn-print {
-    background: #0f4c81; color: #fff; border: none;
-  }
-  .btn-print:hover { background: #0d3f6a; }
-  .btn-reset {
-    background: #fff; color: #64748b; border: 1px solid #e2e8f0;
-  }
-  .btn-reset:hover { background: #f8fafc; color: #334155; }
+/* ── Cards ── */
+.cards-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.card-full { grid-column: 1 / -1; }
 
-  .report-card {
-    background: #fff; border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 16px;
-    overflow: hidden;
-  }
-  .report-card .card-header {
-    padding: 14px 24px; font-size: 15px; font-weight: 700; color: #fff;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .report-card .card-header .num {
-    width: 26px; height: 26px; border-radius: 50%;
-    background: rgba(255,255,255,0.25); display: flex;
-    align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700;
-  }
-  .report-card .card-body { padding: 24px; }
+.card {
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+.card-header {
+  padding: 16px 24px; font-size: 15px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-header .icon { font-size: 18px; }
+.card-body { padding: 24px; }
 
-  .card-accent-1 .card-header { background: #0f4c81; }
-  .card-accent-2 .card-header { background: #7c3aed; }
-  .card-accent-3 .card-header { background: #0891b2; }
-  .card-accent-4 .card-header { background: #059669; }
-  .card-accent-5 .card-header { background: #dc2626; }
-  .card-accent-6 .card-header { background: #d97706; }
-  .card-accent-7 .card-header { background: #6366f1; }
-  .card-accent-8 .card-header { background: #0f4c81; }
-  .card-accent-9 .card-header { background: #475569; }
+/* Card 1 — 핵심수치 (blue) */
+.card-metrics .card-header { background: linear-gradient(135deg, #0f4c81, #1a6fbf); }
+.card-metrics { border-left: 4px solid #0f4c81; }
 
-  .card-accent-1 { border-left: 4px solid #0f4c81; }
-  .card-accent-2 { border-left: 4px solid #7c3aed; }
-  .card-accent-3 { border-left: 4px solid #0891b2; }
-  .card-accent-4 { border-left: 4px solid #059669; }
-  .card-accent-5 { border-left: 4px solid #dc2626; }
-  .card-accent-6 { border-left: 4px solid #d97706; }
-  .card-accent-7 { border-left: 4px solid #6366f1; }
-  .card-accent-8 { border-left: 4px solid #0f4c81; }
-  .card-accent-9 { border-left: 4px solid #475569; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.metric-item {
+  padding: 14px 16px; background: #f8fafc; border-radius: 10px;
+  border: 1px solid #f1f5f9;
+}
+.metric-label {
+  font-size: 11px; color: #94a3b8; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.metric-value {
+  font-size: 18px; font-weight: 700; color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.metric-value.em { color: #0f4c81; }
 
-  /* ── Investment Opinion Badge ── */
-  .opinion-badge {
-    display: inline-block; padding: 8px 24px; border-radius: 8px;
-    font-size: 18px; font-weight: 800; letter-spacing: 1px;
-  }
-  .opinion-buy { background: #fef2f2; color: #dc2626; border: 2px solid #fca5a5; }
-  .opinion-hold { background: #fffbeb; color: #d97706; border: 2px solid #fcd34d; }
-  .opinion-sell { background: #eff6ff; color: #2563eb; border: 2px solid #93c5fd; }
+/* 52주 범위 바 */
+.range-section { margin-top: 16px; }
+.range-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #94a3b8; margin-bottom: 6px;
+}
+.range-track {
+  height: 8px; background: linear-gradient(90deg, #2563eb 0%, #e2e8f0 50%, #dc2626 100%);
+  border-radius: 4px; position: relative;
+}
+.range-dot {
+  position: absolute; top: 50%; width: 14px; height: 14px;
+  background: #0f172a; border: 2px solid #fff;
+  border-radius: 50%; transform: translate(-50%, -50%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+.range-curr-label {
+  font-size: 11px; font-weight: 700; color: #0f172a;
+  position: absolute; top: -22px; transform: translateX(-50%);
+  background: #fff; padding: 1px 6px; border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15); white-space: nowrap;
+}
 
-  .summary-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;
-  }
-  .summary-item { padding: 12px; background: #f8fafc; border-radius: 8px; }
-  .summary-item .label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-  .summary-item .val { font-size: 16px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+/* Card 2 — 사업구조 (purple) */
+.card-business .card-header { background: linear-gradient(135deg, #7c3aed, #9d5cf5); }
+.card-business { border-left: 4px solid #7c3aed; }
+.business-text {
+  font-size: 14px; color: #334155; line-height: 1.8;
+}
 
-  .points-list { list-style: none; margin-top: 14px; }
-  .points-list li {
-    padding: 8px 0; font-size: 14px; color: #334155;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex; align-items: flex-start; gap: 8px;
-  }
-  .points-list li:last-child { border: none; }
-  .point-icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-  .point-bull { background: #fef2f2; color: #dc2626; }
-  .point-bear { background: #eff6ff; color: #2563eb; }
+/* Card 3 — Bull/Bear (split) */
+.card-bullbear { border-left: 4px solid #059669; }
+.bullbear-header { background: linear-gradient(135deg, #059669 50%, #dc2626 50%); }
 
-  /* ── Info Grid ── */
-  .info-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-  }
-  .info-item {
-    padding: 14px; background: #f8fafc; border-radius: 10px;
-    border: 1px solid #f1f5f9;
-  }
-  .info-item .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .info-item .val { font-size: 16px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+.bullbear-body {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+}
+.bull-col { padding: 20px 20px 20px 24px; border-right: 1px solid #f1f5f9; }
+.bear-col { padding: 20px 24px 20px 20px; }
 
-  /* ── Tables ── */
-  .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .report-table thead th {
-    text-align: center; padding: 10px 12px; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    color: #64748b; border-bottom: 2px solid #e2e8f0;
-    background: #f8fafc; white-space: nowrap;
-  }
-  .report-table tbody td {
-    text-align: center; padding: 10px 12px; border-bottom: 1px solid #f1f5f9;
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-  }
-  .report-table tbody tr:nth-child(even) { background: #fafbfd; }
-  .report-table tbody tr:hover { background: #f0f6ff; }
-  .val-up { color: #dc2626; font-weight: 600; }
-  .val-down { color: #2563eb; font-weight: 600; }
-  .val-flat { color: #94a3b8; }
+.bull-title {
+  font-size: 13px; font-weight: 700; color: #059669;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.bear-title {
+  font-size: 13px; font-weight: 700; color: #dc2626;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.point-list { list-style: none; }
+.point-list li {
+  padding: 7px 0; font-size: 13px; color: #334155;
+  border-bottom: 1px solid #f8fafc;
+  display: flex; align-items: flex-start; gap: 8px;
+  line-height: 1.5;
+}
+.point-list li:last-child { border: none; }
+.bull-dot { width: 6px; height: 6px; border-radius: 50%; background: #059669; margin-top: 5px; flex-shrink: 0; }
+.bear-dot { width: 6px; height: 6px; border-radius: 50%; background: #dc2626; margin-top: 5px; flex-shrink: 0; }
 
-  /* ── Progress Bar (52w range) ── */
-  .range-bar-wrap { margin-top: 16px; }
-  .range-labels { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px; }
-  .range-bar {
-    height: 20px; background: linear-gradient(90deg, #2563eb, #94a3b8, #dc2626);
-    border-radius: 10px; position: relative;
-  }
-  .range-marker {
-    position: absolute; top: -6px; width: 4px; height: 32px;
-    background: #0f172a; border-radius: 2px; transform: translateX(-50%);
-  }
-  .range-marker-label {
-    position: absolute; top: -28px; transform: translateX(-50%);
-    font-size: 12px; font-weight: 700; color: #0f172a;
-    background: #fff; padding: 2px 8px; border-radius: 4px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.15); white-space: nowrap;
-  }
+/* Card 4 — 차트분석 (teal) */
+.card-technical .card-header { background: linear-gradient(135deg, #0891b2, #0ea5e9); }
+.card-technical { border-left: 4px solid #0891b2; }
 
-  /* ── Research list ── */
-  .research-list { list-style: none; }
-  .research-item {
-    padding: 12px 0; border-bottom: 1px solid #f1f5f9;
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 12px; flex-wrap: wrap;
-  }
-  .research-item:last-child { border: none; }
-  .research-info { flex: 1; min-width: 200px; }
-  .research-title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 2px; }
-  .research-meta { font-size: 12px; color: #94a3b8; }
-  .research-link {
-    font-size: 12px; padding: 4px 12px; border: 1px solid #e2e8f0;
-    border-radius: 6px; color: #0f4c81; text-decoration: none;
-    transition: all 0.15s; white-space: nowrap;
-  }
-  .research-link:hover { background: #f0f6ff; border-color: #0f4c81; }
+.tech-content { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-  /* ── Strategy ── */
-  .strategy-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-  }
-  .strategy-box {
-    padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;
-  }
-  .strategy-box h4 { font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px; }
-  .strategy-box p { font-size: 14px; color: #334155; line-height: 1.6; }
-  .strategy-box.highlight { background: #f0f6ff; border-color: #bfdbfe; }
+.price-ladder { display: flex; flex-direction: column; gap: 8px; }
+.ladder-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+}
+.ladder-item.target2 { background: #fef2f2; border: 1px solid #fecaca; }
+.ladder-item.target1 { background: #fff7ed; border: 1px solid #fed7aa; }
+.ladder-item.current { background: #f0f9ff; border: 2px solid #0891b2; }
+.ladder-item.buyline { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.ladder-item.stoploss { background: #eff6ff; border: 1px solid #bfdbfe; }
 
-  .conclusion-text { font-size: 15px; color: #334155; line-height: 1.8; }
+.ladder-icon { font-size: 16px; flex-shrink: 0; }
+.ladder-info { flex: 1; }
+.ladder-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.ladder-price {
+  font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+.target2 .ladder-price { color: #dc2626; }
+.target1 .ladder-price { color: #ea580c; }
+.current .ladder-price { color: #0891b2; }
+.buyline .ladder-price { color: #059669; }
+.stoploss .ladder-price { color: #2563eb; }
 
-  /* ── Error ── */
-  .error-note {
-    padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a;
-    border-radius: 8px; font-size: 12px; color: #92400e; margin-bottom: 12px;
-  }
+.ladder-pct {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 12px; white-space: nowrap;
+}
+.pct-up { background: #fef2f2; color: #dc2626; }
+.pct-dn { background: #eff6ff; color: #2563eb; }
 
-  /* ── Responsive ── */
-  @media (max-width: 640px) {
-    header { padding: 14px 16px; }
-    .container { padding: 16px 12px 48px; }
-    .search-row { flex-direction: column; }
-    .summary-grid { grid-template-columns: 1fr; }
-    .strategy-grid { grid-template-columns: 1fr; }
-    .info-grid { grid-template-columns: repeat(2, 1fr); }
-  }
+.tech-comment {
+  padding: 16px; background: #f8fafc; border-radius: 10px;
+  font-size: 13px; color: #475569; line-height: 1.7;
+  border-left: 3px solid #0891b2;
+}
+.tech-comment-label {
+  font-size: 11px; font-weight: 700; color: #0891b2;
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+}
 
-  /* ── Print ── */
-  @media print {
-    body { background: #fff; }
-    header, .search-section, .progress-section, .report-actions { display: none !important; }
-    .container { padding: 0; max-width: 100%; }
-    .report-section { display: block !important; }
-    .report-card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; margin-bottom: 12px; }
-    .report-header { box-shadow: none; border: 1px solid #e2e8f0; }
-  }
+.reset-btn {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 20px;
+  padding: 10px 20px; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 10px; color: #64748b; font-size: 13px;
+  cursor: pointer; transition: all 0.15s; font-weight: 500;
+}
+.reset-btn:hover { border-color: #0f4c81; color: #0f4c81; background: #f0f6ff; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  header { padding: 14px 16px; }
+  .container { padding: 16px 12px 48px; }
+  .search-box { padding: 20px 16px; }
+  .search-row { flex-direction: column; }
+  .cards-grid { grid-template-columns: 1fr; }
+  .card-full { grid-column: auto; }
+  .bullbear-body { grid-template-columns: 1fr; }
+  .bear-col { border-top: 1px solid #f1f5f9; }
+  .bull-col { border-right: none; }
+  .tech-content { grid-template-columns: 1fr; }
+  .stock-header { text-align: center; flex-direction: column; align-items: center; }
+  .stock-price-box { text-align: center; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
 
 <header>
   <div class="header-left">
-    <a href="/" class="back">&larr; 섹터별 대시보드</a>
+    <a href="/">&larr; 섹터별 대시보드</a>
     <h1>AI 증권 리포트</h1>
   </div>
   <div class="header-right">
-    <a href="/stock-dashboard.html">섹터 대시보드</a>
+    <a href="/reports.html">증권사 리포트</a>
     <a href="/quant.html">퀀트 분석</a>
   </div>
 </header>
 
 <div class="container">
-  <!-- Search Section -->
-  <div class="search-section">
-    <h2>종목 검색 &amp; 리포트 생성</h2>
+
+  <!-- 검색 -->
+  <div class="search-box" id="searchBox">
+    <h2><span class="icon">🔍</span> 종목 검색</h2>
     <div class="search-row">
-      <div class="search-input-wrap">
-        <input type="text" id="searchInput" placeholder="종목명 또는 코드를 입력하세요 (예: 삼성전자, 005930)" autocomplete="off">
-        <div class="search-dropdown" id="searchDropdown"></div>
+      <div class="search-wrap">
+        <input type="text" id="searchInput"
+          placeholder="종목명 또는 코드 (예: 삼성전자, 005930)"
+          autocomplete="off" spellcheck="false" autofocus>
+        <div class="dropdown" id="dropdown"></div>
       </div>
-    </div>
-    <div class="selected-stock" id="selectedStock">
-      <span class="name" id="selName"></span>
-      <span class="code" id="selCode"></span>
-      <span class="remove" id="selRemove">&times;</span>
+      <button class="analyze-btn" id="analyzeBtn" disabled>AI 분석</button>
     </div>
     <div class="quick-tags">
       <span class="quick-tag" data-name="삼성전자">삼성전자</span>
@@ -374,785 +369,309 @@
       <span class="quick-tag" data-name="알테오젠">알테오젠</span>
       <span class="quick-tag" data-name="POSCO홀딩스">POSCO홀딩스</span>
       <span class="quick-tag" data-name="LG에너지솔루션">LG에너지솔루션</span>
+      <span class="quick-tag" data-name="크래프톤">크래프톤</span>
+      <span class="quick-tag" data-name="카카오">카카오</span>
     </div>
-    <div class="options-row">
-      <select id="purposeSelect">
-        <option value="신규 매수">분석 목적: 신규 매수</option>
-        <option value="추가 매수">분석 목적: 추가 매수</option>
-        <option value="비중 확대">분석 목적: 비중 확대</option>
-        <option value="매도 판단">분석 목적: 매도 판단</option>
-      </select>
-      <select id="periodSelect">
-        <option value="단기">투자 기간: 단기</option>
-        <option value="중기">투자 기간: 중기</option>
-        <option value="장기">투자 기간: 장기</option>
-      </select>
-    </div>
-    <button class="generate-btn" id="generateBtn" disabled>리포트 생성</button>
   </div>
 
-  <!-- Progress -->
-  <div class="progress-section" id="progressSection">
-    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
-    <div class="progress-text" id="progressText">데이터를 불러오는 중...</div>
+  <!-- 로딩 -->
+  <div class="loading-section" id="loadingSection">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">AI 분석 중...</div>
+    <div class="loading-sub">주가 데이터를 수집하고 AI가 분석하는 중입니다</div>
   </div>
 
-  <!-- Report Output -->
-  <div class="report-section" id="reportSection"></div>
+  <!-- 에러 -->
+  <div class="error-section" id="errorSection">
+    <p id="errorMsg"></p>
+  </div>
+
+  <!-- 결과 -->
+  <div class="result-section" id="resultSection">
+
+    <!-- 종목 헤더 -->
+    <div class="stock-header" id="stockHeader"></div>
+
+    <div class="cards-grid">
+
+      <!-- Card 1: 핵심수치 -->
+      <div class="card card-metrics">
+        <div class="card-header">
+          <span class="icon">📊</span> 핵심수치
+        </div>
+        <div class="card-body">
+          <div class="metrics-grid" id="metricsGrid"></div>
+          <div class="range-section" id="rangeSection"></div>
+        </div>
+      </div>
+
+      <!-- Card 2: 사업구조 -->
+      <div class="card card-business">
+        <div class="card-header">
+          <span class="icon">🏢</span> 사업구조
+        </div>
+        <div class="card-body">
+          <p class="business-text" id="businessText"></p>
+        </div>
+      </div>
+
+      <!-- Card 3: Bull / Bear (full width) -->
+      <div class="card card-bullbear card-full">
+        <div class="card-header bullbear-header">
+          <span class="icon">📈</span> Bull / Bear 요약
+        </div>
+        <div class="bullbear-body">
+          <div class="bull-col">
+            <div class="bull-title">▲ 강세 (Bull)</div>
+            <ul class="point-list" id="bullList"></ul>
+          </div>
+          <div class="bear-col">
+            <div class="bear-title">▼ 약세 (Bear)</div>
+            <ul class="point-list" id="bearList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: 차트분석 (full width) -->
+      <div class="card card-technical card-full">
+        <div class="card-header">
+          <span class="icon">🎯</span> 차트분석 &amp; 매매 전략
+        </div>
+        <div class="card-body">
+          <div class="tech-content">
+            <div class="price-ladder" id="priceLadder"></div>
+            <div>
+              <div class="tech-comment-label">AI 코멘트</div>
+              <div class="tech-comment" id="techComment"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <button class="reset-btn" id="resetBtn">← 다른 종목 분석하기</button>
+  </div>
+
 </div>
 
 <script>
-(function(){
-  const API = 'http://localhost:3000';
-  let selectedCode = null;
-  let selectedName = null;
+(function () {
+  let selCode = null, selName = null;
 
-  const searchInput = document.getElementById('searchInput');
-  const dropdown = document.getElementById('searchDropdown');
-  const selectedDiv = document.getElementById('selectedStock');
-  const selNameEl = document.getElementById('selName');
-  const selCodeEl = document.getElementById('selCode');
-  const generateBtn = document.getElementById('generateBtn');
-  const progressSection = document.getElementById('progressSection');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const reportSection = document.getElementById('reportSection');
+  const searchInput  = document.getElementById('searchInput');
+  const dropdown     = document.getElementById('dropdown');
+  const analyzeBtn   = document.getElementById('analyzeBtn');
+  const loadingSection = document.getElementById('loadingSection');
+  const loadingText  = document.getElementById('loadingText');
+  const errorSection = document.getElementById('errorSection');
+  const errorMsg     = document.getElementById('errorMsg');
+  const resultSection = document.getElementById('resultSection');
+  const searchBox    = document.getElementById('searchBox');
 
-  // ── Utility ──
-  function parseNum(v) {
-    if (v == null) return NaN;
-    if (typeof v === 'number') return v;
-    return parseFloat(String(v).replace(/,/g, ''));
-  }
-  function fmtNum(n, dec = 0) {
-    if (isNaN(n)) return '-';
-    return n.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  function fmt(n) {
+    if (!n && n !== 0) return '-';
+    return Number(n).toLocaleString('ko-KR');
   }
   function fmtPct(n, dec = 2) {
-    if (isNaN(n)) return '-';
-    return n.toFixed(dec) + '%';
+    if (n == null || isNaN(n)) return '-';
+    return (n > 0 ? '+' : '') + Number(n).toFixed(dec) + '%';
   }
-  function valClass(n) {
-    if (isNaN(n) || n === 0) return 'val-flat';
-    return n > 0 ? 'val-up' : 'val-down';
-  }
-  function signStr(n) {
-    if (isNaN(n)) return '-';
-    return (n > 0 ? '+' : '') + fmtNum(n);
+  function pct(curr, ref) {
+    if (!ref || !curr) return '-';
+    return fmtPct((curr - ref) / ref * 100);
   }
 
-  // ── Search ──
-  let searchTimer = null;
+  // ── 자동완성 ──
+  let timer = null;
   searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimer);
+    clearTimeout(timer);
     const q = searchInput.value.trim();
-    if (!q) { dropdown.classList.remove('show'); return; }
-    searchTimer = setTimeout(() => doSearch(q), 300);
+    if (!q) { dropdown.classList.remove('show'); selCode = null; analyzeBtn.disabled = true; return; }
+    timer = setTimeout(() => suggest(q), 280);
   });
 
-  async function doSearch(q) {
+  async function suggest(q) {
     try {
-      const url = `${API}/api/naver?url=${encodeURIComponent('https://ac.stock.naver.com/ac?q=' + q + '&target=stock')}`;
-      const r = await fetch(url);
+      const r = await fetch(`/api/naver?url=${encodeURIComponent('https://ac.stock.naver.com/ac?q=' + encodeURIComponent(q) + '&target=stock')}`);
       const d = await r.json();
-      const items = d.items || [];
+      const items = (d.items || []).slice(0, 8);
       if (!items.length) { dropdown.classList.remove('show'); return; }
-      dropdown.innerHTML = items.slice(0, 8).map(it =>
+      dropdown.innerHTML = items.map(it =>
         `<div class="dd-item" data-code="${it.code}" data-name="${it.name}">
-          <span><span class="name">${it.name}</span> <span class="code">${it.code}</span></span>
-          <span class="type">${it.typeName || ''}</span>
+          <span><span class="dd-name">${it.name}</span><span class="dd-code">${it.code}</span></span>
+          <span class="dd-type">${it.typeName || ''}</span>
         </div>`
       ).join('');
       dropdown.classList.add('show');
-      dropdown.querySelectorAll('.dd-item').forEach(el => {
-        el.addEventListener('click', () => selectStock(el.dataset.code, el.dataset.name));
-      });
-    } catch(e) { console.error('Search error:', e); }
+      dropdown.querySelectorAll('.dd-item').forEach(el =>
+        el.addEventListener('click', () => pick(el.dataset.code, el.dataset.name))
+      );
+    } catch (_) {}
   }
 
-  function selectStock(code, name) {
-    selectedCode = code;
-    selectedName = name;
-    selNameEl.textContent = name;
-    selCodeEl.textContent = code;
-    selectedDiv.classList.add('show');
+  function pick(code, name) {
+    selCode = code; selName = name;
+    searchInput.value = name;
     dropdown.classList.remove('show');
-    searchInput.value = '';
-    generateBtn.disabled = false;
+    analyzeBtn.disabled = false;
   }
 
-  document.getElementById('selRemove').addEventListener('click', () => {
-    selectedCode = null; selectedName = null;
-    selectedDiv.classList.remove('show');
-    generateBtn.disabled = true;
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) dropdown.classList.remove('show');
   });
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter' && selCode) run(); });
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-input-wrap')) dropdown.classList.remove('show');
-  });
-
-  // ── Quick Tags ──
+  // ── 빠른 태그 ──
   document.querySelectorAll('.quick-tag').forEach(tag => {
     tag.addEventListener('click', async () => {
       const name = tag.dataset.name;
       try {
-        const url = `${API}/api/naver?url=${encodeURIComponent('https://ac.stock.naver.com/ac?q=' + name + '&target=stock')}`;
-        const r = await fetch(url);
+        const r = await fetch(`/api/naver?url=${encodeURIComponent('https://ac.stock.naver.com/ac?q=' + encodeURIComponent(name) + '&target=stock')}`);
         const d = await r.json();
-        const items = d.items || [];
-        if (items.length > 0) selectStock(items[0].code, items[0].name);
-      } catch(e) { console.error(e); }
+        const item = (d.items || []).find(i => i.category === 'stock');
+        if (item) { pick(item.code, item.name); run(); }
+      } catch (_) {}
     });
   });
 
-  // ── Generate ──
-  generateBtn.addEventListener('click', () => generateReport());
+  // ── 분석 실행 ──
+  analyzeBtn.addEventListener('click', run);
 
-  async function generateReport() {
-    if (!selectedCode) return;
-    const code = selectedCode;
-    const name = selectedName;
-    const purpose = document.getElementById('purposeSelect').value;
-    const period = document.getElementById('periodSelect').value;
+  async function run() {
+    if (!selCode) return;
 
-    reportSection.classList.remove('show');
-    reportSection.innerHTML = '';
-    progressSection.classList.add('show');
-    generateBtn.disabled = true;
+    // UI 전환: 검색창 숨기고 로딩 표시
+    searchBox.style.display = 'none';
+    resultSection.style.display = 'none';
+    errorSection.style.display = 'none';
+    loadingText.textContent = `${selName} AI 분석 중...`;
+    loadingSection.style.display = 'block';
 
-    const steps = [
-      { label: '기본 정보 로딩...', pct: 10 },
-      { label: '통합 지표 로딩...', pct: 30 },
-      { label: '재무 데이터 로딩...', pct: 50 },
-      { label: '목표주가 로딩...', pct: 70 },
-      { label: '리서치 리포트 로딩...', pct: 85 },
-      { label: '리포트 생성 중...', pct: 95 },
-    ];
-
-    function setProgress(idx) {
-      progressBar.style.width = steps[idx].pct + '%';
-      progressText.textContent = steps[idx].label;
-    }
-
-    let basicData = null, integData = null, financeData = null, targetData = null, researchData = null;
-    const errors = [];
-
-    // Fetch basic
-    setProgress(0);
     try {
-      const r = await fetch(`${API}/api/naver?url=${encodeURIComponent('https://m.stock.naver.com/api/stock/' + code + '/basic')}`);
-      basicData = await r.json();
-    } catch(e) { errors.push('기본 정보'); }
+      const r = await fetch(`/api/ai-report?code=${selCode}`);
+      const data = await r.json();
 
-    // Fetch integration
-    setProgress(1);
-    try {
-      const r = await fetch(`${API}/api/naver?url=${encodeURIComponent('https://m.stock.naver.com/api/stock/' + code + '/integration')}`);
-      integData = await r.json();
-    } catch(e) { errors.push('통합 지표'); }
+      if (!r.ok || data.error) throw new Error(data.error || '분석 실패');
 
-    // Fetch finance
-    setProgress(2);
-    try {
-      const r = await fetch(`${API}/api/naver?url=${encodeURIComponent('https://m.stock.naver.com/api/stock/' + code + '/finance/quarter')}`);
-      financeData = await r.json();
-    } catch(e) { errors.push('재무 데이터'); }
-
-    // Fetch target
-    setProgress(3);
-    try {
-      const r = await fetch(`${API}/api/target?code=${code}`);
-      targetData = await r.json();
-    } catch(e) { errors.push('목표주가'); }
-
-    // Fetch research
-    setProgress(4);
-    try {
-      const r = await fetch(`${API}/api/research?code=${code}`);
-      researchData = await r.json();
-    } catch(e) { errors.push('리서치 리포트'); }
-
-    setProgress(5);
-
-    // ── Parse Data ──
-    const basic = parseBasic(basicData);
-    const integ = parseIntegration(integData);
-    const finance = parseFinance(financeData);
-    const target = parseTarget(targetData);
-    const research = parseResearch(researchData);
-
-    // ── Algorithmic Analysis ──
-    const analysis = analyze(basic, integ, finance, target, purpose, period);
-
-    // ── Render ──
-    setTimeout(() => {
-      progressSection.classList.remove('show');
-      renderReport(name, code, basic, integ, finance, target, research, analysis, errors, purpose, period);
-      reportSection.classList.add('show');
-      generateBtn.disabled = false;
-    }, 300);
+      render(data);
+      loadingSection.style.display = 'none';
+      resultSection.style.display = 'block';
+    } catch (e) {
+      loadingSection.style.display = 'none';
+      errorMsg.textContent = '⚠ ' + e.message;
+      errorSection.style.display = 'block';
+      searchBox.style.display = 'block';
+    }
   }
 
-  // ── Parsers ──
-  function parseBasic(d) {
-    if (!d) return null;
-    return {
-      name: d.stockName || '',
-      price: parseNum(d.closePrice),
-      change: parseNum(d.compareToPreviousClosePrice),
-      changeRatio: parseNum(d.fluctuationsRatio),
-      volume: parseNum(d.accumulatedTradingVolume),
-      direction: d.compareToPreviousPrice?.name || '',
-      marketStatus: d.marketStatus || '',
-    };
-  }
+  // ── 렌더링 ──
+  function render(d) {
+    const { name, code, price, changeRate, marketCap, per, pbr, high52, low52, analysis } = d;
+    const tech = analysis.technical || {};
 
-  function parseIntegration(d) {
-    if (!d) return null;
-    const infos = {};
-    if (d.totalInfos) {
-      d.totalInfos.forEach(item => {
-        if (item.code) infos[item.code] = item.value;
-        else if (item.key) infos[item.key] = item.value;
-      });
-    }
-    // Deal trend
-    const deals = [];
-    if (d.dealTrendInfos) {
-      d.dealTrendInfos.forEach(item => {
-        deals.push({
-          date: item.date || item.dealDate || '',
-          foreign: parseNum(item.foreignerPureBuyQuant),
-          organ: parseNum(item.organPureBuyQuant),
-          individual: parseNum(item.individualPureBuyQuant),
-        });
-      });
-    }
-    return {
-      per: parseNum(infos.per),
-      pbr: parseNum(infos.pbr),
-      marketCap: infos.marketValue || infos.marketCap || '',
-      eps: parseNum(infos.eps),
-      bps: parseNum(infos.bps),
-      dividendYield: parseNum(infos.dividendYieldRatio),
-      high52: parseNum(infos.highPriceOf52Weeks),
-      low52: parseNum(infos.lowPriceOf52Weeks),
-      cnsPer: parseNum(infos.cnsPer),
-      cnsEps: parseNum(infos.cnsEps),
-      deals: deals,
-    };
-  }
-
-  function parseFinance(d) {
-    if (!d || !d.financeInfo) return null;
-    const periods = d.financeInfo.trTitleList || [];
-    const rows = d.financeInfo.rowList || [];
-    const result = { periods: periods, data: {} };
-    rows.forEach(row => {
-      const title = row.title;
-      const values = (row.columns || []).map(col => col.value != null ? col.value : '');
-      result.data[title] = values;
-    });
-    return result;
-  }
-
-  function parseTarget(d) {
-    if (!d || d.error) return null;
-    return {
-      opinion: d.opinion || '',
-      targetPrice: parseNum(d.targetPrice),
-      broker: d.broker || '',
-      title: d.reportTitle || '',
-      date: d.reportDate || '',
-    };
-  }
-
-  function parseResearch(d) {
-    if (!d || !d.reports) return [];
-    return d.reports.map(r => ({
-      title: r.title || '',
-      broker: r.broker || '',
-      date: r.date || '',
-      views: r.views || '',
-      pdfUrl: r.pdfUrl || '',
-    }));
-  }
-
-  // ── Analysis Engine ──
-  function analyze(basic, integ, finance, target, purpose, period) {
-    const result = {
-      opinion: 'HOLD',
-      opinionKr: '보유',
-      score: 0,
-      targetPrice: NaN,
-      upside: NaN,
-      keyPoints: [],
-      risks: [],
-      buyZone: '',
-      stopLoss: '',
-      scenarios: [],
-    };
-
-    const price = basic ? basic.price : NaN;
-
-    // Target upside
-    if (target && !isNaN(target.targetPrice) && !isNaN(price) && price > 0) {
-      result.targetPrice = target.targetPrice;
-      result.upside = ((target.targetPrice - price) / price) * 100;
-    }
-
-    // Score based on upside
-    let score = 0;
-    if (!isNaN(result.upside)) {
-      if (result.upside > 30) score += 3;
-      else if (result.upside > 20) score += 2.5;
-      else if (result.upside > 10) score += 2;
-      else if (result.upside > 0) score += 1;
-      else score -= 1;
-    }
-
-    // Foreign/institutional momentum
-    if (integ && integ.deals.length > 0) {
-      let foreignBuyDays = 0, organBuyDays = 0;
-      integ.deals.forEach(d => {
-        if (d.foreign > 0) foreignBuyDays++;
-        if (d.organ > 0) organBuyDays++;
-      });
-      if (foreignBuyDays >= 3) score += 1;
-      if (organBuyDays >= 3) score += 0.5;
-      if (foreignBuyDays <= 1 && organBuyDays <= 1) score -= 0.5;
-    }
-
-    // PER check
-    if (integ && !isNaN(integ.per) && integ.per > 0) {
-      if (integ.per < 10) score += 0.5;
-      else if (integ.per > 40) score -= 0.5;
-    }
-
-    // Revenue growth from finance
-    let revenueGrowing = false, marginImproving = false, revenueDecline = false;
-    if (finance && finance.data['매출액']) {
-      const rev = finance.data['매출액'].map(parseNum);
-      if (rev.length >= 2) {
-        const last = rev[rev.length - 1], prev = rev[rev.length - 2];
-        if (!isNaN(last) && !isNaN(prev) && prev > 0) {
-          revenueGrowing = last > prev;
-          revenueDecline = last < prev;
-        }
-      }
-    }
-    if (finance && finance.data['영업이익률']) {
-      const margins = finance.data['영업이익률'].map(parseNum);
-      if (margins.length >= 2) {
-        const last = margins[margins.length - 1], prev = margins[margins.length - 2];
-        if (!isNaN(last) && !isNaN(prev)) marginImproving = last > prev;
-      }
-    }
-
-    if (revenueGrowing) score += 0.5;
-    if (revenueDecline) score -= 0.5;
-
-    // Determine opinion
-    if (score >= 3) { result.opinion = 'BUY'; result.opinionKr = '매수'; }
-    else if (score >= 1.5) { result.opinion = 'BUY'; result.opinionKr = '매수'; }
-    else if (score >= 0) { result.opinion = 'HOLD'; result.opinionKr = '보유'; }
-    else { result.opinion = 'SELL'; result.opinionKr = '매도'; }
-    result.score = score;
-
-    // Key investment points
-    if (revenueGrowing) result.keyPoints.push('매출 성장세 지속 - 최근 분기 매출액이 전분기 대비 증가');
-    if (marginImproving) result.keyPoints.push('수익성 개선 추세 - 영업이익률 전분기 대비 상승');
-    if (integ) {
-      let totalForeign = 0;
-      integ.deals.forEach(d => { totalForeign += (isNaN(d.foreign) ? 0 : d.foreign); });
-      if (totalForeign > 0) result.keyPoints.push('외국인 순매수 유입 - 최근 5일간 외국인 누적 순매수');
-      else if (totalForeign < 0) result.risks.push('외국인 매도세 지속 - 최근 5일간 외국인 순매도 기록');
-    }
-    if (!isNaN(result.upside) && result.upside > 15) result.keyPoints.push(`증권사 컨센서스 대비 저평가 - 목표주가 대비 ${result.upside.toFixed(1)}% 상승 여력`);
-    if (integ && !isNaN(integ.per) && integ.per > 0 && integ.per < 15) result.keyPoints.push(`밸류에이션 매력 - PER ${integ.per.toFixed(1)}배로 저평가 구간`);
-    if (integ && !isNaN(integ.high52) && !isNaN(integ.low52) && !isNaN(price)) {
-      const range = integ.high52 - integ.low52;
-      if (range > 0) {
-        const pos = ((price - integ.low52) / range) * 100;
-        if (pos < 30) result.keyPoints.push('바닥권 매수 기회 - 52주 최저가 대비 낮은 구간에 위치');
-        if (pos > 85) result.risks.push('고점 부담 - 52주 최고가에 근접한 위치');
-      }
-    }
-
-    // Risks
-    if (integ && !isNaN(integ.per) && integ.per > 35) result.risks.push(`고밸류에이션 부담 - PER ${integ.per.toFixed(1)}배로 높은 수준`);
-    if (revenueDecline) result.risks.push('실적 둔화 우려 - 최근 분기 매출액이 전분기 대비 감소');
-    if (finance && finance.data['부채비율']) {
-      const debt = finance.data['부채비율'].map(parseNum);
-      const lastDebt = debt[debt.length - 1];
-      if (!isNaN(lastDebt) && lastDebt > 200) result.risks.push(`재무 안정성 주의 - 부채비율 ${lastDebt.toFixed(1)}%로 높은 수준`);
-    }
-
-    // Ensure at least some points
-    if (result.keyPoints.length === 0) result.keyPoints.push('추가 분석 데이터 필요 - 현재 가용 데이터 기준 뚜렷한 매수 시그널 부재');
-    if (result.risks.length === 0) result.risks.push('현재 가용 데이터 기준 뚜렷한 리스크 요인 제한적');
-
-    // Strategy
-    if (!isNaN(price)) {
-      if (!isNaN(result.upside) && result.upside > 20) {
-        result.buyZone = `${fmtNum(Math.round(price * 0.95))}원 ~ ${fmtNum(Math.round(price * 1.02))}원 (적극 매수 구간)`;
-      } else if (!isNaN(result.upside) && result.upside > 10) {
-        result.buyZone = `${fmtNum(Math.round(price * 0.93))}원 ~ ${fmtNum(Math.round(price * 0.98))}원 (분할 매수 구간)`;
-      } else {
-        result.buyZone = `${fmtNum(Math.round(price * 0.90))}원 ~ ${fmtNum(Math.round(price * 0.95))}원 (신중한 접근)`;
-      }
-
-      const low52 = integ ? integ.low52 : NaN;
-      const stopBase = !isNaN(low52) ? Math.max(low52, price * 0.85) : price * 0.85;
-      result.stopLoss = `${fmtNum(Math.round(stopBase))}원 (현재가 대비 -${((1 - stopBase / price) * 100).toFixed(1)}%)`;
-
-      result.scenarios = [
-        { title: '낙관 시나리오', text: !isNaN(result.targetPrice) ? `목표주가 ${fmtNum(result.targetPrice)}원 달성 시 ${fmtPct(result.upside)} 수익` : '실적 개선 지속 시 밸류에이션 리레이팅 기대' },
-        { title: '기본 시나리오', text: `현 수준에서 ±5% 박스권 등락 예상 (${fmtNum(Math.round(price * 0.95))}원 ~ ${fmtNum(Math.round(price * 1.05))}원)` },
-        { title: '비관 시나리오', text: `${fmtNum(Math.round(stopBase))}원 이탈 시 추가 하락 가능성, 손절 대응 필요` },
-      ];
-    }
-
-    return result;
-  }
-
-  // ── Render Report ──
-  function renderReport(name, code, basic, integ, finance, target, research, analysis, errors, purpose, period) {
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-    const price = basic ? basic.price : NaN;
-
-    let html = '';
-
-    // Errors
-    if (errors.length) {
-      html += `<div class="error-note">일부 데이터를 불러오지 못했습니다: ${errors.join(', ')}. 해당 섹션은 제한적으로 표시됩니다.</div>`;
-    }
-
-    // Report Header
-    html += `
-      <div class="report-header">
-        <h2>${name} (${code}) 투자 분석 리포트</h2>
-        <div class="subtitle">${dateStr} 기준 | 분석 목적: ${purpose} | 투자 기간: ${period}</div>
-        <div class="generated-badge">AI Analyst Report</div>
-      </div>
-    `;
-
-    // Actions
-    html += `
-      <div class="report-actions">
-        <button class="btn-reset" onclick="document.getElementById('reportSection').classList.remove('show');">닫기</button>
-        <button class="btn-print" onclick="window.print();">PDF로 저장</button>
-      </div>
-    `;
-
-    // ① Investment Summary
-    const opinionClass = analysis.opinion === 'BUY' ? 'opinion-buy' : analysis.opinion === 'SELL' ? 'opinion-sell' : 'opinion-hold';
-    html += `
-      <div class="report-card card-accent-1">
-        <div class="card-header"><span class="num">1</span> 핵심 요약</div>
-        <div class="card-body">
-          <div style="text-align:center;margin-bottom:16px;">
-            <span class="opinion-badge ${opinionClass}">${analysis.opinion} (${analysis.opinionKr})</span>
-          </div>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="label">현재가</div>
-              <div class="val">${!isNaN(price) ? fmtNum(price) + '원' : '-'}
-                ${basic ? `<span class="${valClass(basic.change)}" style="font-size:13px;margin-left:6px;">${signStr(basic.change)}원 (${basic.changeRatio > 0 ? '+' : ''}${fmtPct(basic.changeRatio)})</span>` : ''}
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="label">목표주가 / 상승여력</div>
-              <div class="val">${!isNaN(analysis.targetPrice) ? fmtNum(analysis.targetPrice) + '원' : '-'}
-                ${!isNaN(analysis.upside) ? `<span class="${valClass(analysis.upside)}" style="font-size:13px;margin-left:6px;">${analysis.upside > 0 ? '+' : ''}${fmtPct(analysis.upside)}</span>` : ''}
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="label">시가총액</div>
-              <div class="val">${integ && integ.marketCap ? integ.marketCap : '-'}</div>
-            </div>
-            <div class="summary-item">
-              <div class="label">시장 포지션</div>
-              <div class="val">${purpose} / ${period} 관점</div>
-            </div>
-          </div>
-          <h4 style="margin-top:20px;font-size:13px;color:#059669;font-weight:700;">핵심 투자포인트</h4>
-          <ul class="points-list">
-            ${analysis.keyPoints.map(p => `<li><span class="point-icon point-bull">+</span>${p}</li>`).join('')}
-          </ul>
-          <h4 style="margin-top:16px;font-size:13px;color:#dc2626;font-weight:700;">주요 리스크</h4>
-          <ul class="points-list">
-            ${analysis.risks.map(p => `<li><span class="point-icon point-bear">!</span>${p}</li>`).join('')}
-          </ul>
+    // ── 종목 헤더 ──
+    const changeClass = changeRate > 0 ? 'change-up' : changeRate < 0 ? 'change-down' : 'change-flat';
+    document.getElementById('stockHeader').innerHTML = `
+      <div>
+        <div class="stock-title">
+          <span class="stock-name">${name}</span>
+          <span class="stock-code">${code}</span>
+        </div>
+        <div style="margin-top:6px;">
+          <span class="ai-badge"><span class="ai-dot"></span> AI 분석 완료</span>
         </div>
       </div>
-    `;
+      <div class="stock-price-box">
+        <div class="stock-price">${fmt(price)}원</div>
+        <div class="stock-change ${changeClass}">${fmtPct(changeRate)}</div>
+      </div>`;
 
-    // ② Business Overview
-    html += `
-      <div class="report-card card-accent-2">
-        <div class="card-header"><span class="num">2</span> 종목 기본 정보</div>
-        <div class="card-body">
-          <div class="info-grid">
-            <div class="info-item"><div class="label">PER</div><div class="val">${integ && !isNaN(integ.per) ? integ.per.toFixed(2) + '배' : '-'}</div></div>
-            <div class="info-item"><div class="label">PBR</div><div class="val">${integ && !isNaN(integ.pbr) ? integ.pbr.toFixed(2) + '배' : '-'}</div></div>
-            <div class="info-item"><div class="label">EPS</div><div class="val">${integ && !isNaN(integ.eps) ? fmtNum(integ.eps) + '원' : '-'}</div></div>
-            <div class="info-item"><div class="label">BPS</div><div class="val">${integ && !isNaN(integ.bps) ? fmtNum(integ.bps) + '원' : '-'}</div></div>
-            <div class="info-item"><div class="label">배당수익률</div><div class="val">${integ && !isNaN(integ.dividendYield) ? fmtPct(integ.dividendYield) : '-'}</div></div>
-            <div class="info-item"><div class="label">시가총액</div><div class="val">${integ && integ.marketCap ? integ.marketCap : '-'}</div></div>
-            <div class="info-item"><div class="label">52주 최고</div><div class="val">${integ && !isNaN(integ.high52) ? fmtNum(integ.high52) + '원' : '-'}</div></div>
-            <div class="info-item"><div class="label">52주 최저</div><div class="val">${integ && !isNaN(integ.low52) ? fmtNum(integ.low52) + '원' : '-'}</div></div>
-          </div>
-        </div>
+    // ── 핵심수치 ──
+    document.getElementById('metricsGrid').innerHTML = `
+      <div class="metric-item">
+        <div class="metric-label">시가총액</div>
+        <div class="metric-value em">${marketCap || '-'}</div>
       </div>
-    `;
+      <div class="metric-item">
+        <div class="metric-label">PER</div>
+        <div class="metric-value">${per > 0 ? per.toFixed(2) + '배' : '-'}</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-label">52주 최저가</div>
+        <div class="metric-value">${fmt(low52)}원</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-label">52주 최고가</div>
+        <div class="metric-value">${fmt(high52)}원</div>
+      </div>`;
 
-    // ③ 수급 분석
-    if (integ && integ.deals.length > 0) {
-      let totalF = 0, totalO = 0, totalI = 0;
-      integ.deals.forEach(d => {
-        totalF += isNaN(d.foreign) ? 0 : d.foreign;
-        totalO += isNaN(d.organ) ? 0 : d.organ;
-        totalI += isNaN(d.individual) ? 0 : d.individual;
-      });
-      const trendDesc = [];
-      if (totalF > 0) trendDesc.push('외국인 순매수');
-      else if (totalF < 0) trendDesc.push('외국인 순매도');
-      if (totalO > 0) trendDesc.push('기관 순매수');
-      else if (totalO < 0) trendDesc.push('기관 순매도');
-      if (totalI > 0) trendDesc.push('개인 순매수');
-      else if (totalI < 0) trendDesc.push('개인 순매도');
-
-      html += `
-        <div class="report-card card-accent-3">
-          <div class="card-header"><span class="num">3</span> 수급 분석 (최근 5일)</div>
-          <div class="card-body">
-            <table class="report-table">
-              <thead><tr><th>날짜</th><th>외국인</th><th>기관</th><th>개인</th></tr></thead>
-              <tbody>
-                ${integ.deals.map(d => `
-                  <tr>
-                    <td>${d.date}</td>
-                    <td class="${valClass(d.foreign)}">${signStr(d.foreign)}</td>
-                    <td class="${valClass(d.organ)}">${signStr(d.organ)}</td>
-                    <td class="${valClass(d.individual)}">${signStr(d.individual)}</td>
-                  </tr>
-                `).join('')}
-                <tr style="font-weight:700;border-top:2px solid #e2e8f0;">
-                  <td>합계</td>
-                  <td class="${valClass(totalF)}">${signStr(totalF)}</td>
-                  <td class="${valClass(totalO)}">${signStr(totalO)}</td>
-                  <td class="${valClass(totalI)}">${signStr(totalI)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p style="margin-top:12px;font-size:13px;color:#475569;">
-              최근 5일 수급 동향: ${trendDesc.join(', ') || '뚜렷한 방향성 없음'}
-            </p>
+    // 52주 위치 바
+    if (high52 > 0 && low52 > 0 && price > 0) {
+      const ratio = Math.min(100, Math.max(0, (price - low52) / (high52 - low52) * 100));
+      document.getElementById('rangeSection').innerHTML = `
+        <div class="range-section">
+          <div class="range-labels">
+            <span>52주 저점 ${fmt(low52)}원</span>
+            <span>현재 위치</span>
+            <span>52주 고점 ${fmt(high52)}원</span>
           </div>
-        </div>
-      `;
+          <div class="range-track">
+            <div class="range-dot" style="left:${ratio}%">
+              <div class="range-curr-label">${fmt(price)}원</div>
+            </div>
+          </div>
+        </div>`;
     }
 
-    // ④ Financial Analysis
-    if (finance && finance.periods.length > 0) {
-      const periods = finance.periods;
-      const metrics = ['매출액', '영업이익', '당기순이익', '영업이익률', 'ROE', '부채비율'];
-      html += `
-        <div class="report-card card-accent-4">
-          <div class="card-header"><span class="num">4</span> 재무 분석 (분기별)</div>
-          <div class="card-body">
-            <div style="overflow-x:auto;">
-            <table class="report-table">
-              <thead><tr><th>항목</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
-              <tbody>
-                ${metrics.map(m => {
-                  const vals = finance.data[m] || [];
-                  return `<tr><td style="text-align:left;font-weight:600;">${m}</td>${vals.map((v, i) => {
-                    const n = parseNum(v);
-                    const cls = (m === '영업이익률' || m === 'ROE') && !isNaN(n) ? valClass(n) : '';
-                    return `<td class="${cls}">${v || '-'}</td>`;
-                  }).join('')}</tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-            </div>
-            ${renderGrowthNote(finance)}
+    // ── 사업구조 ──
+    document.getElementById('businessText').textContent = analysis.businessStructure || '-';
+
+    // ── Bull / Bear ──
+    const bull = analysis.bull || [];
+    const bear = analysis.bear || [];
+    document.getElementById('bullList').innerHTML = bull.map(t =>
+      `<li><span class="bull-dot"></span><span>${t}</span></li>`
+    ).join('');
+    document.getElementById('bearList').innerHTML = bear.map(t =>
+      `<li><span class="bear-dot"></span><span>${t}</span></li>`
+    ).join('');
+
+    // ── 차트분석 ──
+    function ladderRow(cls, icon, label, price2, curr) {
+      const p = pct(price2, curr);
+      const pClass = price2 >= curr ? 'pct-up' : 'pct-dn';
+      return `
+        <div class="ladder-item ${cls}">
+          <span class="ladder-icon">${icon}</span>
+          <div class="ladder-info">
+            <div class="ladder-label">${label}</div>
+            <div class="ladder-price">${fmt(price2)}원</div>
           </div>
-        </div>
-      `;
+          ${price2 !== curr ? `<span class="ladder-pct ${pClass}">${p}</span>` : '<span class="ladder-pct" style="background:#e0f2fe;color:#0891b2">기준</span>'}
+        </div>`;
     }
 
-    // ⑤ Valuation
-    html += `
-      <div class="report-card card-accent-5">
-        <div class="card-header"><span class="num">5</span> 밸류에이션 분석</div>
-        <div class="card-body">
-          <div class="info-grid">
-            <div class="info-item"><div class="label">현재 PER</div><div class="val">${integ && !isNaN(integ.per) ? integ.per.toFixed(2) + '배' : '-'}</div></div>
-            <div class="info-item"><div class="label">현재 PBR</div><div class="val">${integ && !isNaN(integ.pbr) ? integ.pbr.toFixed(2) + '배' : '-'}</div></div>
-            <div class="info-item"><div class="label">추정 PER (컨센서스)</div><div class="val">${integ && !isNaN(integ.cnsPer) ? integ.cnsPer.toFixed(2) + '배' : '-'}</div></div>
-            <div class="info-item"><div class="label">추정 EPS (컨센서스)</div><div class="val">${integ && !isNaN(integ.cnsEps) ? fmtNum(integ.cnsEps) + '원' : '-'}</div></div>
-            <div class="info-item"><div class="label">목표주가</div><div class="val">${!isNaN(analysis.targetPrice) ? fmtNum(analysis.targetPrice) + '원' : '-'}</div></div>
-            <div class="info-item"><div class="label">상승여력</div><div class="val ${!isNaN(analysis.upside) ? valClass(analysis.upside) : ''}">${!isNaN(analysis.upside) ? (analysis.upside > 0 ? '+' : '') + fmtPct(analysis.upside) : '-'}</div></div>
-          </div>
-          ${target && target.broker ? `<p style="margin-top:14px;font-size:13px;color:#64748b;">출처: ${target.broker} / ${target.title || ''} (${target.date || ''})</p>` : ''}
-        </div>
-      </div>
-    `;
+    document.getElementById('priceLadder').innerHTML =
+      ladderRow('target2', '🚀', '2차 목표가', tech.target2, price) +
+      ladderRow('target1', '🎯', '1차 목표가', tech.target1, price) +
+      ladderRow('current', '📍', '현재가',      price,        price) +
+      ladderRow('buyline', '🟢', '매수 라인',   tech.buyLine, price) +
+      ladderRow('stoploss','🔵', '손절가',      tech.stopLoss, price);
 
-    // ⑥ 차트 위치 분석
-    if (integ && !isNaN(integ.high52) && !isNaN(integ.low52) && !isNaN(price)) {
-      const range = integ.high52 - integ.low52;
-      const pos = range > 0 ? ((price - integ.low52) / range) * 100 : 50;
-      const posLabel = pos < 25 ? '저점 구간' : pos < 50 ? '중하위 구간' : pos < 75 ? '중상위 구간' : '고점 구간';
-      html += `
-        <div class="report-card card-accent-6">
-          <div class="card-header"><span class="num">6</span> 차트 위치 분석</div>
-          <div class="card-body">
-            <div class="info-grid" style="margin-bottom:20px;">
-              <div class="info-item"><div class="label">52주 최저</div><div class="val">${fmtNum(integ.low52)}원</div></div>
-              <div class="info-item"><div class="label">현재가</div><div class="val">${fmtNum(price)}원</div></div>
-              <div class="info-item"><div class="label">52주 최고</div><div class="val">${fmtNum(integ.high52)}원</div></div>
-              <div class="info-item"><div class="label">위치</div><div class="val">${pos.toFixed(1)}% (${posLabel})</div></div>
-            </div>
-            <div class="range-bar-wrap">
-              <div class="range-labels">
-                <span>${fmtNum(integ.low52)}원</span>
-                <span>${fmtNum(integ.high52)}원</span>
-              </div>
-              <div class="range-bar">
-                <div class="range-marker" style="left:${Math.min(Math.max(pos, 2), 98)}%">
-                  <div class="range-marker-label">${fmtNum(price)}원 (${pos.toFixed(1)}%)</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // ⑦ 최근 증권사 리포트
-    if (research && research.length > 0) {
-      html += `
-        <div class="report-card card-accent-7">
-          <div class="card-header"><span class="num">7</span> 최근 증권사 리포트</div>
-          <div class="card-body">
-            <ul class="research-list">
-              ${research.slice(0, 10).map(r => `
-                <li class="research-item">
-                  <div class="research-info">
-                    <div class="research-title">${r.title}</div>
-                    <div class="research-meta">${r.broker} | ${r.date}${r.views ? ' | 조회 ' + r.views : ''}</div>
-                  </div>
-                  ${r.pdfUrl ? `<a class="research-link" href="${r.pdfUrl}" target="_blank">PDF</a>` : ''}
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-        </div>
-      `;
-    }
-
-    // ⑧ 투자 전략
-    html += `
-      <div class="report-card card-accent-8">
-        <div class="card-header"><span class="num">8</span> 투자 전략</div>
-        <div class="card-body">
-          <div class="strategy-grid">
-            <div class="strategy-box highlight">
-              <h4>매수 구간</h4>
-              <p>${analysis.buyZone || '-'}</p>
-            </div>
-            <div class="strategy-box">
-              <h4>손절 기준</h4>
-              <p>${analysis.stopLoss || '-'}</p>
-            </div>
-          </div>
-          ${analysis.scenarios.length > 0 ? `
-            <h4 style="margin-top:20px;font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px;">시나리오별 전략</h4>
-            <div class="strategy-grid" style="grid-template-columns:1fr;">
-              ${analysis.scenarios.map(s => `
-                <div class="strategy-box">
-                  <h4>${s.title}</h4>
-                  <p>${s.text}</p>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-
-    // ⑨ 종합 의견
-    const conclusionText = buildConclusion(name, basic, integ, analysis, purpose, period);
-    html += `
-      <div class="report-card card-accent-9">
-        <div class="card-header"><span class="num">9</span> 종합 의견</div>
-        <div class="card-body">
-          <p class="conclusion-text">${conclusionText}</p>
-          <div style="margin-top:20px;text-align:center;">
-            <div class="generated-badge" style="font-size:12px;">본 리포트는 공개 데이터 기반 알고리즘 분석으로 생성되었으며, 투자 권유가 아닙니다. 투자 결정은 본인의 판단에 따라 이루어져야 합니다.</div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    reportSection.innerHTML = html;
+    document.getElementById('techComment').textContent = tech.comment || '-';
   }
 
-  function renderGrowthNote(finance) {
-    if (!finance) return '';
-    const notes = [];
-    const rev = (finance.data['매출액'] || []).map(parseNum);
-    if (rev.length >= 2) {
-      const last = rev[rev.length - 1], prev = rev[rev.length - 2];
-      if (!isNaN(last) && !isNaN(prev) && prev !== 0) {
-        const g = ((last - prev) / Math.abs(prev)) * 100;
-        notes.push(`매출액 QoQ ${g > 0 ? '+' : ''}${g.toFixed(1)}%`);
-      }
-    }
-    const op = (finance.data['영업이익'] || []).map(parseNum);
-    if (op.length >= 2) {
-      const last = op[op.length - 1], prev = op[op.length - 2];
-      if (!isNaN(last) && !isNaN(prev) && prev !== 0) {
-        const g = ((last - prev) / Math.abs(prev)) * 100;
-        notes.push(`영업이익 QoQ ${g > 0 ? '+' : ''}${g.toFixed(1)}%`);
-      }
-    }
-    if (notes.length === 0) return '';
-    return `<p style="margin-top:14px;font-size:13px;color:#475569;">성장률: ${notes.join(' / ')}</p>`;
-  }
-
-  function buildConclusion(name, basic, integ, analysis, purpose, period) {
-    const parts = [];
-    parts.push(`${name}에 대한 ${purpose} 관점의 ${period} 투자 분석 결과, 투자 의견은 <strong>${analysis.opinion} (${analysis.opinionKr})</strong>입니다.`);
-
-    if (!isNaN(analysis.upside)) {
-      if (analysis.upside > 20) {
-        parts.push(`증권사 목표주가 대비 ${analysis.upside.toFixed(1)}%의 상승 여력이 있어 적극적인 매수 접근이 유효합니다.`);
-      } else if (analysis.upside > 10) {
-        parts.push(`증권사 목표주가 대비 ${analysis.upside.toFixed(1)}%의 상승 여력이 있어 분할 매수 전략이 적합합니다.`);
-      } else if (analysis.upside > 0) {
-        parts.push(`증권사 목표주가 대비 ${analysis.upside.toFixed(1)}%의 제한적 상승 여력으로 보유 관점이 적합합니다.`);
-      } else {
-        parts.push(`증권사 목표주가 대비 하락 여지가 있어 신중한 접근이 필요합니다.`);
-      }
-    }
-
-    if (analysis.keyPoints.length > 0) {
-      parts.push(`주요 긍정 요인으로는 ${analysis.keyPoints[0].split(' - ')[0]}${analysis.keyPoints.length > 1 ? ', ' + analysis.keyPoints[1].split(' - ')[0] : ''} 등이 있습니다.`);
-    }
-
-    if (analysis.risks.length > 0) {
-      parts.push(`다만 ${analysis.risks[0].split(' - ')[0]} 등의 리스크 요인에 유의해야 합니다.`);
-    }
-
-    parts.push(`${period} 투자 시 제시된 매수 구간과 손절 기준을 참고하여 체계적인 투자 전략을 수립하시기 바랍니다.`);
-
-    return parts.join(' ');
-  }
+  // ── 초기화 ──
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    resultSection.style.display = 'none';
+    errorSection.style.display = 'none';
+    searchBox.style.display = 'block';
+    searchInput.value = '';
+    selCode = null; selName = null;
+    analyzeBtn.disabled = true;
+    searchInput.focus();
+  });
 
 })();
 </script>
