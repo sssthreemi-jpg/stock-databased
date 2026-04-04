@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>대웅제약 손익 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: #f5f7fa;
+    color: #1e293b;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 24px 0;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f4c81;
+    letter-spacing: -0.5px;
+  }
+  header p {
+    font-size: 14px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+
+  /* ── Container ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+  }
+
+  /* ── Upload Area ── */
+  .upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 16px;
+    background: #fff;
+    padding: 52px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-area:hover,
+  .upload-area.drag-over {
+    border-color: #0f4c81;
+    background: #f0f6ff;
+  }
+  .upload-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    color: #94a3b8;
+  }
+  .upload-area h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #334155;
+  }
+  .upload-area .sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 6px;
+  }
+  .upload-area input[type="file"] { display: none; }
+
+  /* ── File badge ── */
+  .file-badge {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #0f4c81;
+  }
+  .file-badge svg { width: 16px; height: 16px; }
+
+  /* ── Chart Card ── */
+  .chart-card {
+    display: none;
+    margin-top: 28px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 28px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .chart-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f4c81;
+    margin-bottom: 4px;
+  }
+  .chart-card .summary {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 440px;
+  }
+  .chart-wrap--bar {
+    height: 400px;
+  }
+
+  /* ── Bar Header & Filter ── */
+  .bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .filter-group {
+    display: flex;
+    gap: 6px;
+  }
+  .filter-btn {
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover {
+    background: #f0f6ff;
+    border-color: #0f4c81;
+    color: #0f4c81;
+  }
+  .filter-btn.active {
+    background: #0f4c81;
+    border-color: #0f4c81;
+    color: #fff;
+  }
+
+  /* ── Error ── */
+  .error-msg {
+    display: none;
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #b91c1c;
+    font-size: 14px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>대웅제약 손익 대시보드</h1>
+  <p>CSV 파일을 업로드하면 월별 매출 추이를 확인할 수 있습니다</p>
+</header>
+
+<div class="container">
+  <!-- Upload -->
+  <div class="upload-area" id="uploadArea">
+    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
+    </svg>
+    <h2>CSV 파일을 드래그하거나 클릭하여 업로드</h2>
+    <p class="sub">구분 · 계정명 · 월별 금액 형식의 CSV 파일</p>
+    <input type="file" id="fileInput" accept=".csv">
+  </div>
+
+  <div class="file-badge" id="fileBadge">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+    </svg>
+    <span id="fileNameText"></span>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Line Chart -->
+  <div class="chart-card" id="chartCard">
+    <h3>월별 매출 · 영업이익 추이</h3>
+    <p class="summary" id="summaryText"></p>
+    <div class="chart-wrap">
+      <canvas id="salesChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Bar Chart -->
+  <div class="chart-card" id="barCard">
+    <div class="bar-header">
+      <h3>계정별 연간 합계 비교</h3>
+      <div class="filter-group" id="filterGroup">
+        <button class="filter-btn active" data-filter="전체">전체</button>
+        <button class="filter-btn" data-filter="매출">매출</button>
+        <button class="filter-btn" data-filter="매출원가">매출원가</button>
+        <button class="filter-btn" data-filter="판관비">판관비</button>
+      </div>
+    </div>
+    <p class="summary" id="barSummaryText"></p>
+    <div class="chart-wrap chart-wrap--bar">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Elements ── */
+const uploadArea  = document.getElementById('uploadArea');
+const fileInput   = document.getElementById('fileInput');
+const fileBadge   = document.getElementById('fileBadge');
+const fileNameText= document.getElementById('fileNameText');
+const errorMsg    = document.getElementById('errorMsg');
+const chartCard   = document.getElementById('chartCard');
+const summaryText = document.getElementById('summaryText');
+
+let chartInstance = null;
+let barChartInstance = null;
+let allAccounts = [];
+let activeFilter = '전체';
+
+/* ── Filter Buttons ── */
+document.getElementById('filterGroup').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn || !allAccounts.length) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = btn.dataset.filter;
+  renderBarChart(allAccounts, activeFilter);
+});
+
+/* ── Upload Handlers ── */
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadArea.classList.add('drag-over');
+});
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+/* ── File Read ── */
+function handleFile(file) {
+  hideError();
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    showError('CSV 파일만 업로드할 수 있습니다.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      parseAndRender(e.target.result, file.name);
+    } catch (err) {
+      showError('CSV 파싱 오류: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* ── CSV Parser (handles quoted fields) ── */
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQ = false;
+      else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { result.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+/* ── Core Logic ── */
+function parseAndRender(text, fileName) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('데이터가 부족합니다.');
+
+  const header = parseCSVLine(lines[0]);
+
+  // 월 라벨 추출 (3열부터)
+  const monthLabels = header.slice(2).map(h => {
+    const m = h.replace(/^"|"$/g, '').trim();
+    const match = m.match(/(\d{4})-(\d{2})$/);
+    if (match) return parseInt(match[2], 10) + '월';
+    return m;
+  });
+
+  const monthCount = monthLabels.length;
+
+  // 구분별 월별 합산 + 계정별 연간 합계
+  const salesSums = new Array(monthCount).fill(0);
+  const cogsSums  = new Array(monthCount).fill(0);
+  const sgaSums   = new Array(monthCount).fill(0);
+  let salesRowCount = 0;
+
+  const accounts = []; // { category, name, total }
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const category = cols[0];
+    let rowTotal = 0;
+    for (let j = 0; j < monthCount; j++) {
+      const val = parseFloat(cols[j + 2]) || 0;
+      rowTotal += val;
+      if (category === '매출')     { salesSums[j] += val; if (j === 0) salesRowCount++; }
+      else if (category === '매출원가') { cogsSums[j] += val; }
+      else if (category === '판관비')  { sgaSums[j] += val; }
+    }
+    accounts.push({ category, name: cols[1], total: Math.round(rowTotal * 10) / 10 });
+  }
+
+  if (salesRowCount === 0) {
+    showError('구분이 "매출"인 행을 찾을 수 없습니다.');
+    return;
+  }
+
+  // 영업이익 = 매출 - 매출원가 - 판관비, 소수점 1자리
+  const opIncome = new Array(monthCount);
+  for (let i = 0; i < monthCount; i++) {
+    salesSums[i] = Math.round(salesSums[i] * 10) / 10;
+    opIncome[i]  = Math.round((salesSums[i] - cogsSums[i] - sgaSums[i]) * 10) / 10;
+  }
+
+  // 요약
+  const totalSales = salesSums.reduce((a, b) => a + b, 0);
+  const totalOp    = opIncome.reduce((a, b) => a + b, 0);
+  summaryText.textContent =
+    `매출 연간 ${totalSales.toLocaleString()}억원 · 영업이익 연간 ${totalOp.toLocaleString()}억원 · 영업이익률 ${(totalOp / totalSales * 100).toFixed(1)}%`;
+
+  // Show
+  fileNameText.textContent = fileName;
+  fileBadge.style.display = 'flex';
+  chartCard.style.display = 'block';
+  document.getElementById('barCard').style.display = 'block';
+
+  allAccounts = accounts;
+  activeFilter = '전체';
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === '전체'));
+
+  renderChart(monthLabels, salesSums, opIncome);
+  renderBarChart(accounts, activeFilter);
+}
+
+/* ── Chart ── */
+function renderChart(labels, salesData, opData) {
+  if (chartInstance) chartInstance.destroy();
+
+  const ctx = document.getElementById('salesChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '매출',
+          data: salesData,
+          borderColor: '#0f4c81',
+          backgroundColor: 'rgba(15, 76, 129, 0.07)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#0f4c81',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          borderWidth: 2.5
+        },
+        {
+          label: '영업이익',
+          data: opData,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22, 163, 74, 0.06)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#16a34a',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          borderWidth: 2.5
+        }
+      ]
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: 20,
+            font: { size: 13, weight: '600' },
+            color: '#334155'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleFont: { size: 13 },
+          bodyFont: { size: 13 },
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: ctx => ' ' + ctx.dataset.label + '  ' + ctx.parsed.y.toLocaleString() + ' 억원'
+          }
+        },
+        datalabels: {
+          align: 'top',
+          offset: 6,
+          font: { size: 11, weight: '600' },
+          color: ctx => ctx.datasetIndex === 0 ? '#0f4c81' : '#16a34a',
+          formatter: v => v.toLocaleString()
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 13 }, color: '#64748b' }
+        },
+        y: {
+          title: {
+            display: true,
+            text: '억원',
+            font: { size: 13, weight: '600' },
+            color: '#64748b'
+          },
+          ticks: {
+            font: { size: 12 },
+            color: '#64748b',
+            callback: v => v.toLocaleString()
+          },
+          grid: { color: '#f1f5f9' },
+          beginAtZero: false
+        }
+      }
+    }
+  });
+}
+
+/* ── Bar Chart ── */
+const CATEGORY_COLORS = { '매출': '#0f4c81', '매출원가': '#dc2626', '판관비': '#f59e0b' };
+
+function renderBarChart(accounts, filter) {
+  if (barChartInstance) barChartInstance.destroy();
+
+  const filtered = filter === '전체' ? accounts : accounts.filter(a => a.category === filter);
+  const labels = filtered.map(a => a.name);
+  const data   = filtered.map(a => a.total);
+  const colors = filtered.map(a => CATEGORY_COLORS[a.category] || '#94a3b8');
+
+  // 요약 텍스트
+  const groupTotals = {};
+  filtered.forEach(a => { groupTotals[a.category] = (groupTotals[a.category] || 0) + a.total; });
+  document.getElementById('barSummaryText').textContent =
+    Object.entries(groupTotals).map(([k, v]) => `${k} ${Math.round(v).toLocaleString()}억원`).join(' · ');
+
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderRadius: 6,
+        maxBarThickness: 52
+      }]
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: {
+            generateLabels: () => Object.entries(CATEGORY_COLORS).map(([text, color]) => ({
+              text,
+              fillStyle: color,
+              strokeStyle: color,
+              lineWidth: 0,
+              pointStyle: 'rectRounded'
+            })),
+            usePointStyle: true,
+            padding: 20,
+            font: { size: 13, weight: '600' },
+            color: '#334155'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleFont: { size: 13 },
+          bodyFont: { size: 13 },
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            title: ctx => {
+              const idx = ctx[0].dataIndex;
+              return filtered[idx].category + ' > ' + filtered[idx].name;
+            },
+            label: ctx => ' ' + ctx.parsed.y.toLocaleString() + ' 억원'
+          }
+        },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          offset: 2,
+          font: { size: 11, weight: '600' },
+          color: '#334155',
+          formatter: v => v.toLocaleString()
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11.5 }, color: '#64748b', maxRotation: 45, minRotation: 0 }
+        },
+        y: {
+          title: {
+            display: true,
+            text: '억원',
+            font: { size: 13, weight: '600' },
+            color: '#64748b'
+          },
+          ticks: {
+            font: { size: 12 },
+            color: '#64748b',
+            callback: v => v.toLocaleString()
+          },
+          grid: { color: '#f1f5f9' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+/* ── Helpers ── */
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.style.display = 'block';
+  chartCard.style.display = 'none';
+  document.getElementById('barCard').style.display = 'none';
+}
+function hideError() {
+  errorMsg.style.display = 'none';
+}
+</script>
+</body>
+</html>

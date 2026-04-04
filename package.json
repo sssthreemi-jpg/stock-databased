@@ -1,0 +1,12 @@
+{
+  "name": "stock-dashboard",
+  "version": "1.0.0",
+  "description": "Korean Stock Sector Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
