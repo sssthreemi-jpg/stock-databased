@@ -790,7 +790,7 @@ const server = http.createServer(async (req, res) => {
           fundamental.periods = fi.trTitleList.slice(-4).map(t => ({
             key: t.key, title: t.title || t.key, isConsensus: t.isConsensus === 'Y',
           }));
-          const wantRows = ['PER', 'PBR', 'EPS', 'BPS', 'EV/EBITDA', 'EBITDA', 'DPS', '배당수익률', 'ROE', 'ROA'];
+          const wantRows = ['매출액', '당기순이익', 'PER', 'PBR', 'EPS', 'BPS', 'EV/EBITDA', 'EBITDA', 'DPS', '배당수익률', 'ROE', 'ROA'];
           fundamental.rows = fi.rowList
             .filter(r => wantRows.some(w => r.title && r.title.includes(w)))
             .map(r => ({
@@ -816,6 +816,32 @@ const server = http.createServer(async (req, res) => {
         fundamental.rows = metricMap
           .filter(([, code]) => infosMap[code] != null)
           .map(([title, code]) => ({ title, values: [infosMap[code]] }));
+        // 분기 데이터에서 매출액·순이익 추가
+        try {
+          const qfi = quarterData?.financeInfo;
+          if (qfi) {
+            const pnq = v => { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; };
+            const confirmed = (qfi.trTitleList || []).filter(t => t.isConsensus === 'N').map(t => t.key).sort().reverse();
+            if (confirmed.length >= 1) {
+              const k1 = confirmed[0];
+              const t1 = qfi.trTitleList.find(t => t.key === k1);
+              let qRevenue = 0, qNetIncome = 0;
+              for (const row of (qfi.rowList || [])) {
+                const col = row.columns?.[k1];
+                if (!col) continue;
+                if (row.title === '매출액') qRevenue = pnq(col.value);
+                if (row.title === '당기순이익') qNetIncome = pnq(col.value);
+              }
+              if (qRevenue > 0) {
+                fundamental.periods = [{ key: 'current', title: t1?.title || k1, isConsensus: false }];
+                fundamental.rows.unshift({ title: '매출액(억)', values: [qRevenue] });
+              }
+              if (qNetIncome !== 0) {
+                fundamental.rows.splice(qRevenue > 0 ? 1 : 0, 0, { title: '순이익(억)', values: [qNetIncome] });
+              }
+            }
+          }
+        } catch (_) {}
       }
 
       // 최근 뉴스 헤드라인 + URL 파싱
