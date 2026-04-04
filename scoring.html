@@ -279,10 +279,12 @@ body {
 
   async function suggest(q) {
     try {
-      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const items = await r.json();
+      const url = 'https://ac.stock.naver.com/ac?q=' + encodeURIComponent(q) + '&target=stock';
+      const r = await fetch(`/api/naver?url=${encodeURIComponent(url)}`);
+      const d = await r.json();
+      const items = (d.items || []).slice(0, 8);
       if (!items.length) { dropdown.classList.remove('show'); return; }
-      dropdown.innerHTML = items.slice(0, 8).map(it =>
+      dropdown.innerHTML = items.map(it =>
         `<div class="dropdown-item" data-code="${it.code}" data-name="${it.name}">
           <span>${it.name}</span><span class="code">${it.code}</span>
         </div>`
