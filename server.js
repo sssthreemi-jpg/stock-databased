@@ -778,16 +778,22 @@ const server = http.createServer(async (req, res) => {
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
       try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
 
-      // 최근 뉴스 헤드라인 파싱
+      // 최근 뉴스 헤드라인 + URL 파싱
       const headlines = [];
       try {
         if (newsRes.status === 'fulfilled') {
           const newsHtml = newsRes.value.data;
-          const newsPattern = /<td class="title"[^>]*>\s*<a[^>]*>([^<]+)<\/a>/g;
+          const newsPattern = /<td class="title"[^>]*>\s*<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
           let nm;
           while ((nm = newsPattern.exec(newsHtml)) !== null && headlines.length < 5) {
-            const t = nm[1].trim();
-            if (t && t.length > 5) headlines.push(t);
+            const url = nm[1].trim();
+            const title = nm[2].trim();
+            if (title && title.length > 5) {
+              headlines.push({
+                title,
+                url: url.startsWith('http') ? url : 'https://finance.naver.com' + url,
+              });
+            }
           }
         }
       } catch (_) {}
@@ -904,8 +910,8 @@ const server = http.createServer(async (req, res) => {
         const posKw = ['수주', '성장', '흑자', '급등', '돌파', '매수', '호실적', '증가', '상승', '최대'];
         const negKw = ['하락', '손실', '적자', '부진', '우려', '하향', '매도', '감소', '악화', '리스크'];
         headlines.forEach(h => {
-          if (bull.length < 4 && posKw.some(k => h.includes(k))) bull.push(`[뉴스] ${h}`);
-          if (bear.length < 4 && negKw.some(k => h.includes(k))) bear.push(`[뉴스] ${h}`);
+          if (bull.length < 4 && posKw.some(k => h.title.includes(k))) bull.push(`[뉴스] ${h.title}`);
+          if (bear.length < 4 && negKw.some(k => h.title.includes(k))) bear.push(`[뉴스] ${h.title}`);
         });
       }
 
