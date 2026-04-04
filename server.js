@@ -1255,29 +1255,43 @@ const server = http.createServer(async (req, res) => {
       let techScore = 0;
       const techDetail = {};
 
-      // 1. 이동평균 배열 (6점): MA5 > MA20 > MA60 정배열
+      // 1. 이동평균 배열 (6점): 가능한 데이터로 정배열 확인
       let maScore = 0;
-      if (ma5 > 0 && ma20 > 0 && ma60 > 0 && price > 0) {
-        if (price > ma5) maScore += 1;
-        if (ma5 > ma20) maScore += 2;
-        if (ma20 > ma60) maScore += 2;
-        if (price > ma60) maScore += 1;
-      } else if (ma20 > 0) {
-        if (price > ma20) maScore += 3;
-        else maScore += 1;
+      if (price > 0) {
+        if (ma5 > 0 && ma20 > 0 && ma60 > 0) {
+          // 완전한 정배열 판단
+          if (price > ma5)  maScore += 1;
+          if (ma5 > ma20)   maScore += 2;
+          if (ma20 > ma60)  maScore += 2;
+          if (price > ma60) maScore += 1;
+        } else if (ma5 > 0 && ma20 > 0) {
+          // MA5, MA20만 있을 때 (6점 만점 기준 비례)
+          if (price > ma5)  maScore += 2;
+          if (ma5 > ma20)   maScore += 3;
+          if (price > ma20) maScore += 1;
+        } else if (ma20 > 0) {
+          if (price > ma20) maScore += 4;
+          else maScore += 1;
+        } else if (ma5 > 0) {
+          if (price > ma5) maScore += 3;
+          else maScore += 1;
+        }
       }
-      techDetail.ma = { score: maScore, max: 6, label: '이동평균 배열', desc: `MA5(${Math.round(ma5).toLocaleString()}) MA20(${Math.round(ma20).toLocaleString()}) MA60(${Math.round(ma60).toLocaleString()})` };
+      const maDesc = [ma5>0?`MA5(${Math.round(ma5).toLocaleString()})`:null, ma20>0?`MA20(${Math.round(ma20).toLocaleString()})`:null, ma60>0?`MA60(${Math.round(ma60).toLocaleString()})`:null].filter(Boolean).join(' ') || '데이터 부족';
+      techDetail.ma = { score: maScore, max: 6, label: '이동평균 배열', desc: maDesc };
       techScore += maScore;
 
-      // 2. MA20 괴리율 (6점): 너무 멀면 감점
+      // 2. MA20 괴리율 (6점): MA20 없으면 MA5로 대체
       let divScore = 3;
-      if (ma20 > 0 && price > 0) {
-        const div = (price - ma20) / ma20 * 100;
+      const maRef = ma20 > 0 ? ma20 : ma5;
+      const maRefLabel = ma20 > 0 ? 'MA20' : 'MA5';
+      if (maRef > 0 && price > 0) {
+        const div = (price - maRef) / maRef * 100;
         if (div >= -3 && div <= 5) divScore = 6;
         else if (div >= -8 && div <= 12) divScore = 4;
         else if (div >= -15 && div <= 20) divScore = 2;
         else divScore = 0;
-        techDetail.divergence = { score: divScore, max: 6, label: 'MA20 괴리율', desc: `현재가 MA20 대비 ${div.toFixed(1)}%` };
+        techDetail.divergence = { score: divScore, max: 6, label: `${maRefLabel} 괴리율`, desc: `현재가 ${maRefLabel} 대비 ${div.toFixed(1)}%` };
       } else {
         techDetail.divergence = { score: divScore, max: 6, label: 'MA20 괴리율', desc: '데이터 부족' };
       }
