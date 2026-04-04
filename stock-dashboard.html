@@ -416,7 +416,7 @@
       <table>
         <thead>
           <tr>
-            <th>종목명</th><th>현재가</th><th>등락</th><th>거래량</th>
+            <th>종목명</th><th>현재가</th><th>등락</th>
             <th>시가총액</th><th>PER</th><th>PBR</th>
             <th>매출액(최근)</th><th>영업이익(최근)</th>
             <th>매출액(직전)</th><th>영업이익(직전)</th>
@@ -424,7 +424,7 @@
           </tr>
         </thead>
         <tbody id="stockTableBody">
-          <tr><td colspan="14"><div class="loading-overlay"><div class="spinner"></div>데이터를 불러오는 중...</div></td></tr>
+          <tr><td colspan="13"><div class="loading-overlay"><div class="spinner"></div>데이터를 불러오는 중...</div></td></tr>
         </tbody>
       </table>
       </div>
@@ -1089,7 +1089,7 @@ function renderTable(stocks) {
   titleEl.innerHTML = `${countLabel}<span class="filter-count">${filtered.length !== stocks.length ? '필터 적용 중' : ''}</span>`;
 
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="14"><div class="loading-overlay">조건에 맞는 종목이 없습니다.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13"><div class="loading-overlay">조건에 맞는 종목이 없습니다.</div></td></tr>';
     return;
   }
 
@@ -1146,7 +1146,6 @@ function renderTable(stocks) {
       <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span>${s.sector ? `<span class="sector-badge">${s.sector}</span>` : ''}${(() => { const theme = THEME_MAP[s.code] || SECTOR_THEME_MAP[s.sector] || ''; return theme ? `<span class="theme-badge">${theme}</span>` : ''; })()}</td>
       <td class="price">${s.price.toLocaleString()}</td>
       <td class="${chgClass}">${chgSign}${s.change.toLocaleString()} (${chgSign}${s.changePercent}%)</td>
-      <td>${volStr}</td>
       <td>${mcapStr}</td>
       <td>${s.per > 0 ? s.per.toFixed(1) : '-'}${(() => {
         const sec = sectorMap[s.code] || s.sector;
