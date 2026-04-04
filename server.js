@@ -765,19 +765,58 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 병렬로 Naver 데이터 + 뉴스 + 분기실적 + 연간차트 요청
-      const [basicRes, integRes, quarterRes, newsRes, yearChartRes] = await Promise.allSettled([
+      // 병렬로 Naver 데이터 + 뉴스 + 분기실적 + 연간차트 + 펀더멘탈 요청
+      const [basicRes, integRes, quarterRes, newsRes, yearChartRes, summaryRes, earningsRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/finance/quarter`),
         proxyRequestEucKr(`https://finance.naver.com/item/news_news.naver?code=${stockCode}&page=1`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/yearChart`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/finance/summary`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/consensus/earningsSurprise`),
       ]);
 
-      let basic = null, integ = null, quarterData = null;
+      let basic = null, integ = null, quarterData = null, summaryData = null, earningsData = null;
       try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
       try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
+      try { if (summaryRes.status === 'fulfilled') summaryData = JSON.parse(summaryRes.value.data); } catch (_) {}
+      try { if (earningsRes.status === 'fulfilled') earningsData = JSON.parse(earningsRes.value.data); } catch (_) {}
+
+      // ── 펀더멘탈 연간 데이터 파싱 ──
+      const fundamental = { periods: [], rows: [] };
+      try {
+        if (summaryData?.financeInfo) {
+          const fi = summaryData.financeInfo;
+          fundamental.periods = (fi.trTitleList || []).map(t => ({
+            key: t.key, title: t.title || t.key, isConsensus: t.isConsensus === 'Y',
+          })).slice(-4); // 최근 4개 연도
+          const wantRows = ['PER(배)', 'PBR(배)', 'EPS(원)', 'BPS(원)', 'EV/EBITDA(배)', 'EBITDA(억원)', '현금DPS(원)', '현금배당수익률(%)'];
+          fundamental.rows = (fi.rowList || [])
+            .filter(r => wantRows.some(w => r.title && r.title.includes(w.split('(')[0])))
+            .map(r => ({
+              title: r.title,
+              values: fundamental.periods.map(p => {
+                const col = r.columns?.[p.key];
+                return col?.value != null ? col.value : '-';
+              }),
+            }));
+        }
+      } catch (_) {}
+
+      // ── 어닝서프라이즈 파싱 ──
+      const earnings = [];
+      try {
+        const items = earningsData?.earningsSurpriseList || earningsData?.list || [];
+        items.slice(0, 4).forEach(item => {
+          earnings.push({
+            period: item.fiscalYearMonth || item.period || '',
+            consensusOp: item.consensusOperatingProfit ?? item.consensusOp ?? '-',
+            actualOp: item.actualOperatingProfit ?? item.actualOp ?? '-',
+            surpriseOp: item.surpriseOperatingProfit ?? item.surpriseOp ?? '-',
+          });
+        });
+      } catch (_) {}
 
       // 최근 뉴스 헤드라인 + URL 파싱
       const headlines = [];
@@ -1018,7 +1057,7 @@ const server = http.createServer(async (req, res) => {
       // 재무 프로필
       const profile = { eps, bps, divYield, roe, latestRevenue, latestOp, revPeriod };
 
-      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, analysis };
+      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, fundamental, earnings, analysis };
       aiReportCache.set(stockCode, { data: result, ts: Date.now() });
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });

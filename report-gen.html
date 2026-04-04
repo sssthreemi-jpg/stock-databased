@@ -272,6 +272,25 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 .bull-dot { width: 6px; height: 6px; border-radius: 50%; background: #059669; margin-top: 5px; flex-shrink: 0; }
 .bear-dot { width: 6px; height: 6px; border-radius: 50%; background: #dc2626; margin-top: 5px; flex-shrink: 0; }
 
+/* Card 5 — 펀더멘탈 (slate) */
+.card-fundamental .card-header { background: linear-gradient(135deg, #334155, #475569); }
+.card-fundamental { border-left: 4px solid #334155; }
+
+.fund-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.fund-table th {
+  padding: 8px 12px; background: #f8fafc; font-size: 11px; font-weight: 700;
+  color: #64748b; text-align: center; border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+.fund-table th.consensus { color: #7c3aed; }
+.fund-table td {
+  padding: 8px 12px; text-align: center; border-bottom: 1px solid #f1f5f9;
+  font-variant-numeric: tabular-nums; color: #334155; white-space: nowrap;
+}
+.fund-table td.label { text-align: left; font-weight: 600; color: #0f172a; background: #fafbfd; }
+.fund-table tr:hover td { background: #f0f6ff; }
+.fund-table tr:hover td.label { background: #e8f0fe; }
+
 /* Card 4 — 차트분석 (teal) */
 .card-technical .card-header { background: linear-gradient(135deg, #0891b2, #0ea5e9); }
 .card-technical { border-left: 4px solid #0891b2; }
@@ -448,6 +467,14 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
         </div>
       </div>
 
+      <!-- Card 5: 펀더멘탈 (full width) -->
+      <div class="card card-fundamental card-full">
+        <div class="card-header">
+          <span class="icon">📋</span> 펀더멘탈
+        </div>
+        <div class="card-body" id="fundamentalBody"></div>
+      </div>
+
       <!-- Card 4: 차트분석 (full width) -->
       <div class="card card-technical card-full">
         <div class="card-header">
@@ -583,7 +610,7 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 
   // ── 렌더링 ──
   function render(d) {
-    const { name, code, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, analysis } = d;
+    const { name, code, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, fundamental, earnings, analysis } = d;
     const tech = analysis.technical || {};
 
     // ── 종목 헤더 ──
@@ -642,6 +669,24 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
             </div>
           </div>
         </div>`;
+    }
+
+    // ── 펀더멘탈 ──
+    const fd = fundamental || {};
+    const fundPeriods = fd.periods || [];
+    const fundRows = fd.rows || [];
+    if (fundPeriods.length > 0 && fundRows.length > 0) {
+      const thHtml = fundPeriods.map(p =>
+        `<th class="${p.isConsensus ? 'consensus' : ''}">${p.title}${p.isConsensus ? ' (E)' : ' (A)'}</th>`
+      ).join('');
+      const tbodyHtml = fundRows.map(r =>
+        `<tr><td class="label">${r.title}</td>${r.values.map(v => `<td>${v}</td>`).join('')}</tr>`
+      ).join('');
+      document.getElementById('fundamentalBody').innerHTML =
+        `<table class="fund-table"><thead><tr><th style="text-align:left">주요지표</th>${thHtml}</tr></thead><tbody>${tbodyHtml}</tbody></table>`;
+    } else {
+      document.getElementById('fundamentalBody').innerHTML =
+        '<div style="color:#94a3b8;font-size:13px;padding:8px 0;">펀더멘탈 데이터를 불러올 수 없습니다.</div>';
     }
 
     // ── 재무 프로필 ──
