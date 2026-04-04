@@ -944,22 +944,17 @@ const server = http.createServer(async (req, res) => {
       } catch (_) {}
 
       // ── 매수가 3종 계산 ──
-      // 매수가① 52주 저점 기반: 저점 +3~8% 구간 (강력 지지선 바로 위)
-      const buy1 = low52 > 0
-        ? Math.round(Math.min(low52 * 1.05, price * 0.94))
-        : Math.round(price * 0.94);
-
-      // 매수가② 이동평균선 기반: MA20·MA60 중 현재가 아래의 더 높은 값
-      let buy2 = 0;
+      // 매수가① 이동평균선 기반: MA20·MA60 중 현재가 아래의 더 높은 값
+      let buy1 = 0;
       if (ma20 > 0 || ma60 > 0) {
         const candidates = [ma20, ma60].filter(m => m > 0 && m < price);
-        buy2 = candidates.length > 0 ? Math.max(...candidates) : Math.round(price * 0.92);
+        buy1 = candidates.length > 0 ? Math.max(...candidates) : Math.round(price * 0.92);
       } else {
-        buy2 = Math.round(price * 0.92);
+        buy1 = Math.round(price * 0.92);
       }
 
-      // 매수가③ 피보나치 기반: 52주 고저 구간의 되돌림 레벨 중 현재가 바로 아래
-      let buy3 = 0;
+      // 매수가② 피보나치 기반: 52주 고저 구간의 되돌림 레벨 중 현재가 바로 아래
+      let buy2 = 0;
       if (high52 > 0 && low52 > 0) {
         const range = high52 - low52;
         const fibLevels = [
@@ -969,9 +964,9 @@ const server = http.createServer(async (req, res) => {
           Math.round(high52 - range * 0.618),
         ];
         const below = fibLevels.filter(l => l < price);
-        buy3 = below.length > 0 ? Math.max(...below) : fibLevels[0];
+        buy2 = below.length > 0 ? Math.max(...below) : fibLevels[0];
       } else {
-        buy3 = Math.round(price * 0.90);
+        buy2 = Math.round(price * 0.90);
       }
 
       // ── 저항선 / 지지선 ──
@@ -998,7 +993,7 @@ const server = http.createServer(async (req, res) => {
       const analysis = {
         bull: bull.slice(0, 3),
         bear: bear.slice(0, 3),
-        technical: { buy1, buy2, buy3, ma20, ma60, resistance1, resistance2, support, comment: techComment },
+        technical: { buy1, buy2, ma20, ma60, resistance1, resistance2, support, comment: techComment },
       };
 
       // 재무 프로필
