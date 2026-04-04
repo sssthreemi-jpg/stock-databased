@@ -218,17 +218,21 @@ const server = http.createServer(async (req, res) => {
         if (!industryNos) continue;
         const codes = [];
         for (const no of industryNos) {
-          try {
-            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=60`);
-            const data = JSON.parse(r.data);
-            (data.stocks || []).forEach(s => {
-              if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
-                codes.push(s.itemCode);
-              }
-            });
-          } catch (_) {}
+          for (const page of [1, 2]) {
+            try {
+              const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=${page}&pageSize=50`);
+              const data = JSON.parse(r.data);
+              const stocks = data.stocks || [];
+              stocks.forEach(s => {
+                if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
+                  codes.push(s.itemCode);
+                }
+              });
+              if (stocks.length < 50) break; // 마지막 페이지면 중단
+            } catch (_) {}
+          }
         }
-        result[sector] = codes.slice(0, 50);
+        result[sector] = codes.slice(0, 80);
       }
 
       res.writeHead(200, {
