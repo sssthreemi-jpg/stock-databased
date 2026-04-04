@@ -190,44 +190,24 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
 
   // ── 네이버 업종 번호 탐색: GET /api/industry-scan?from=260&to=340
-  if (parsedUrl.pathname === '/api/industry-scan') {
-    const mobileBase = 'https://m.stock.naver.com/api';
-    const nos = [260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335];
-    const result = [];
-    for (const no of nos) {
-      try {
-        const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=3`);
-        if (r.statusCode !== 200) continue;
-        const data = JSON.parse(r.data);
-        const stocks = (data.stocks || []).slice(0, 3).map(s => s.stockName || s.itemCode).filter(Boolean);
-        if (stocks.length > 0) {
-          const name = data.industryCode?.name || data.industryGroupName || data.industryName || '';
-          result.push({ no, name, stocks });
-        }
-      } catch (_) {}
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify(result, null, 2));
-    return;
-  }
 
   // ── 업종별 종목 자동 로드: GET /api/industry?sectors=반도체,바이오,... ──
   if (parsedUrl.pathname === '/api/industry') {
     try {
       // 네이버 업종 번호 매핑
       const SECTOR_MAP = {
-        '반도체': [278],
-        '2차전지': [272, 306],  // 화학 + 전기장비 (2차전지 전용 업종 없음)
-        '바이오': [286, 281, 316],  // 생물공학 + 건강관리장비 + 건강관리업체
-        '자동차': [273, 270],  // 자동차 + 자동차부품
-        '금융': [321, 330],  // 증권 + 생명보험
-        '에너지': [295, 313],  // 에너지장비 + 석유와가스
-        '조선': [291],
-        '통신장비': [294, 333],  // 통신장비 + 무선통신
-        '건설': [279],
-        '로봇': [299, 282],  // 기계 + 전자장비
-        '화장품': [297, 274],  // 가정용품 + 섬유의류
-        '우주항공': [284],
+        '반도체': [278, 282],        // 반도체 + 전자부품(삼성전기 등)
+        '2차전지': [272, 306, 283],  // 화학소재 + 전기장비 + 연료전지
+        '바이오': [286, 281, 316],   // 생물공학 + 의료기기 + 헬스케어서비스
+        '자동차': [273, 270],        // 자동차 + 자동차부품
+        '금융': [321, 330, 301],     // 증권 + 생명보험 + 은행
+        '에너지': [295, 313, 325],   // 에너지장비 + 석유가스 + 전력
+        '조선': [291],               // 조선
+        '통신장비': [294, 333, 307], // 통신장비 + 무선통신 + 전자장비
+        '건설': [279, 317],          // 건설 + 부동산
+        '로봇': [299, 298],          // 기계 + 가전/로봇
+        '화장품': [297, 274],        // 생활용품 + 섬유의류
+        '우주항공': [284, 305],      // 방산/우주 + 항공
       };
 
       const mobileBase = 'https://m.stock.naver.com/api';
