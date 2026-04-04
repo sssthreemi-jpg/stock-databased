@@ -1129,7 +1129,13 @@ const server = http.createServer(async (req, res) => {
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
       try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
       try { if (annualRes.status === 'fulfilled') annualData = JSON.parse(annualRes.value.data); } catch (_) {}
-      try { if (yearChartRes.status === 'fulfilled') yearChart = JSON.parse(yearChartRes.value.data); } catch (_) {}
+      try {
+        if (yearChartRes.status === 'fulfilled') {
+          const raw = JSON.parse(yearChartRes.value.data);
+          // API가 { priceInfos: [...] } 또는 배열 직접 반환
+          yearChart = raw?.priceInfos || raw?.chartInfos || (Array.isArray(raw) ? raw : null);
+        }
+      } catch (_) {}
 
       function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
 
@@ -1150,19 +1156,29 @@ const server = http.createServer(async (req, res) => {
       const divYield = pn(infos.dividendYieldRatio);
       const debtRatio = pn(infos.debtRatio);
 
-      // 차트 데이터에서 이동평균 + 거래량 계산 (ai-report와 동일 방식)
-      let ma20 = 0, ma60 = 0, ma5 = 0, avgVol20 = 0, currentVol = 0;
+      // 차트 데이터에서 이동평균 계산
+      let ma20 = 0, ma60 = 0, ma5 = 0;
       try {
-        const rawChart = yearChart;
-        const chartArr = (rawChart?.priceInfos || rawChart?.chartInfos || (Array.isArray(rawChart) ? rawChart : []));
-        const closes = chartArr.map(d => pn(d.closePrice || d.close_price || d.close || d)).filter(v => v > 0);
-        const vols   = chartArr.map(d => pn(d.accumulatedTradingVolume || d.volume || d.tradingVolume)).filter(v => v > 0);
+        const chartArr = Array.isArray(yearChart) ? yearChart : [];
+        const closes = chartArr
+          .map(d => pn(d.closePrice || d.close_price || d.close || d))
+          .filter(v => v > 0);
         if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
         if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
         if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
         else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
-        if (vols.length >= 20) avgVol20 = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
-        if (vols.length > 0)   currentVol = vols[vols.length-1];
+      } catch (_) {}
+
+      // 거래량: basic(당일) vs integration dealTrendInfos(5일 평균)
+      let currentVol = 0, avgVol20 = 0;
+      try {
+        currentVol = pn(basic?.accumulatedTradingVolume);
+        const deals = integ?.dealTrendInfos || [];
+        // dealTrendInfos에 tradingVolume 또는 accumulatedTradingVolume 있을 수 있음
+        const volList = deals.slice(0, 20).map(d => pn(d.accumulatedTradingVolume || d.tradingVolume || d.volume)).filter(v => v > 0);
+        if (volList.length > 0) avgVol20 = volList.reduce((a,b)=>a+b,0)/volList.length;
+        // avgVol20이 없으면 현재 거래량 자체를 기준으로 중립 처리
+        if (avgVol20 === 0 && currentVol > 0) avgVol20 = currentVol;
       } catch (_) {}
 
       // 분기 실적
