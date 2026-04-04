@@ -922,8 +922,8 @@ const server = http.createServer(async (req, res) => {
       while (bull.length < 3) bull.push(bullDefaults[bull.length]);
       while (bear.length < 3) bear.push(bearDefaults[bear.length]);
 
-      // ── 연간 차트 → 이동평균 계산 ──
-      let ma20 = 0, ma60 = 0;
+      // ── 연간 차트 → 이동평균 + 직전 저점 계산 ──
+      let ma20 = 0, ma60 = 0, recentSwingLow = 0;
       try {
         if (yearChartRes.status === 'fulfilled') {
           const chartData = JSON.parse(yearChartRes.value.data);
@@ -940,6 +940,18 @@ const server = http.createServer(async (req, res) => {
           } else if (prices.length > 0) {
             ma60 = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
           }
+          // 직전 저점: 최근 60일 일봉에서 가장 최근 스윙로우 탐색
+          const recent = prices.slice(-60);
+          for (let i = recent.length - 2; i >= 1; i--) {
+            if (recent[i] < recent[i - 1] && recent[i] < recent[i + 1]) {
+              recentSwingLow = recent[i];
+              break;
+            }
+          }
+          // 스윙로우 없으면 최근 20일 최저가 사용
+          if (!recentSwingLow && recent.length >= 20) {
+            recentSwingLow = Math.min(...recent.slice(-20));
+          }
         }
       } catch (_) {}
 
@@ -952,6 +964,13 @@ const server = http.createServer(async (req, res) => {
       } else {
         buy1 = Math.round(price * 0.92);
       }
+
+      // 매수가③ 직전저점 + MA20 기준: 두 값의 중간값
+      const buy3 = recentSwingLow > 0 && ma20 > 0
+        ? Math.round((recentSwingLow + ma20) / 2)
+        : recentSwingLow > 0
+          ? Math.round(recentSwingLow * 1.02)
+          : ma20 > 0 ? Math.round(ma20 * 0.97) : Math.round(price * 0.91);
 
       // 매수가② 피보나치 기반: 52주 고저 구간의 되돌림 레벨 중 현재가 바로 아래
       let buy2 = 0;
@@ -993,7 +1012,7 @@ const server = http.createServer(async (req, res) => {
       const analysis = {
         bull: bull.slice(0, 3),
         bear: bear.slice(0, 3),
-        technical: { buy1, buy2, ma20, ma60, resistance1, resistance2, support, comment: techComment },
+        technical: { buy1, buy2, buy3, ma20, ma60, recentSwingLow, resistance1, resistance2, support, comment: techComment },
       };
 
       // 재무 프로필

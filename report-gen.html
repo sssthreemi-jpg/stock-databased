@@ -735,6 +735,7 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
       ladderRowSub('current', '📍', '현재가',      '기준가',         price,            price) +
       ladderRowSub('buy1',    '①',  '매수가①',    maSub,           tech.buy1,        price) +
       ladderRowSub('buy2',    '②',  '매수가②',    '피보나치 기반',  tech.buy2,        price) +
+      ladderRowSub('buy3',    '③',  '매수가③',    `직전저점(${fmt(tech.recentSwingLow)}원)+MA20 중간값`, tech.buy3, price) +
       ladderRowSub('stoploss','🔵', '지지선',      '손절 기준선',   tech.support,     price);
 
     document.getElementById('techComment').textContent = tech.comment || '-';
