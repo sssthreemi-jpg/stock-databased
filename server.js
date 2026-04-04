@@ -1105,6 +1105,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
+      const mobileBase = 'https://m.stock.naver.com/api';
       let stockCode = codeParam;
       let stockName = nameParam;
       if (!stockCode && stockName) {
