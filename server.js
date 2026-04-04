@@ -191,21 +191,17 @@ const server = http.createServer(async (req, res) => {
 
   // ── 네이버 업종 번호 탐색: GET /api/industry-scan?from=260&to=340
   if (parsedUrl.pathname === '/api/industry-scan') {
-    const from = parseInt(parsedUrl.searchParams.get('from') || '260');
-    const to   = parseInt(parsedUrl.searchParams.get('to')   || '340');
+    const no = parseInt(parsedUrl.searchParams.get('no') || '278');
     const mobileBase = 'https://m.stock.naver.com/api';
-    const result = [];
-    for (let no = from; no <= to; no++) {
-      try {
-        const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=3`);
-        const data = JSON.parse(r.data);
-        if (data?.industryCode) {
-          result.push({ no, name: data.industryCode?.name || data.industryName || '', stocks: (data.stocks||[]).slice(0,3).map(s=>s.stockName||s.itemCode) });
-        }
-      } catch (_) {}
+    try {
+      const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=5`);
+      const raw = r.data;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(raw);
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
     }
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify(result));
     return;
   }
 
