@@ -765,16 +765,18 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 병렬로 Naver 데이터 + 뉴스 요청
-      const [basicRes, integRes, newsRes] = await Promise.allSettled([
+      // 병렬로 Naver 데이터 + 뉴스 + 분기실적 요청
+      const [basicRes, integRes, quarterRes, newsRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/finance/quarter`),
         proxyRequestEucKr(`https://finance.naver.com/item/news_news.naver?code=${stockCode}&page=1`),
       ]);
 
-      let basic = null, integ = null;
+      let basic = null, integ = null, quarterData = null;
       try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
+      try { if (quarterRes.status === 'fulfilled') quarterData = JSON.parse(quarterRes.value.data); } catch (_) {}
 
       // 최근 뉴스 헤드라인 파싱
       const headlines = [];
@@ -783,7 +785,7 @@ const server = http.createServer(async (req, res) => {
           const newsHtml = newsRes.value.data;
           const newsPattern = /<td class="title"[^>]*>\s*<a[^>]*>([^<]+)<\/a>/g;
           let nm;
-          while ((nm = newsPattern.exec(newsHtml)) !== null && headlines.length < 6) {
+          while ((nm = newsPattern.exec(newsHtml)) !== null && headlines.length < 5) {
             const t = nm[1].trim();
             if (t && t.length > 5) headlines.push(t);
           }
@@ -792,8 +794,8 @@ const server = http.createServer(async (req, res) => {
 
       stockName = basic?.stockName || stockName;
 
-      // 시장구분 (KOSPI/KOSDAQ) 및 업종
-      const marketType = basic?.stockExchangeType?.name || basic?.marketStatus || '';
+      // 시장구분 및 업종
+      const marketType = basic?.stockExchangeType?.name || '';
       const sector = basic?.industryCodeType?.name || '';
 
       function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
@@ -803,77 +805,145 @@ const server = http.createServer(async (req, res) => {
       const rawRate = pn(basic?.fluctuationsRatio);
       const changeRate = (direction === 'FALLING' || direction === 'LOWER_LIMIT') ? -Math.abs(rawRate) : rawRate;
 
+      // integration totalInfos 파싱
       let per = 0, pbr = 0, marketCap = '', high52 = 0, low52 = 0;
+      let eps = 0, bps = 0, divYield = 0, roe = 0;
       if (integ?.totalInfos) {
         const infos = {};
         integ.totalInfos.forEach(item => { if (item.code || item.key) infos[item.code || item.key] = item.value; });
-        per = pn(infos.per);
-        pbr = pn(infos.pbr);
+        per = pn(infos.per); pbr = pn(infos.pbr);
         marketCap = infos.marketValue || '';
         high52 = pn(infos.highPriceOf52Weeks);
         low52 = pn(infos.lowPriceOf52Weeks);
+        eps = pn(infos.eps); bps = pn(infos.bps);
+        divYield = pn(infos.dividendYieldRatio);
+        roe = pn(infos.roe);
       }
 
-      const priceFromHigh = high52 > 0 ? ((price - high52) / high52 * 100).toFixed(1) : '-';
-      const priceFromLow  = low52  > 0 ? ((price - low52)  / low52  * 100).toFixed(1) : '-';
-
-      const newsSection = headlines.length > 0
-        ? `\n[최근 뉴스 헤드라인]\n${headlines.map((h, i) => `${i+1}. ${h}`).join('\n')}\n`
-        : '';
-
-      const prompt = `당신은 한국 주식 전문 애널리스트입니다. 아래 ${stockName}(${stockCode}) 데이터를 바탕으로 투자 분석 리포트를 JSON으로 작성하세요.
-
-[종목 데이터]
-종목명: ${stockName} (${stockCode})
-시장: ${marketType || '정보없음'} | 업종: ${sector || '정보없음'}
-현재가: ${price.toLocaleString()}원 (${changeRate > 0 ? '+' : ''}${changeRate.toFixed(2)}%)
-시가총액: ${marketCap || '정보없음'}
-PER: ${per > 0 ? per.toFixed(2) + '배' : '정보없음'}
-PBR: ${pbr > 0 ? pbr.toFixed(2) + '배' : '정보없음'}
-52주 최고가: ${high52 > 0 ? high52.toLocaleString() + '원' : '정보없음'}
-52주 최저가: ${low52 > 0 ? low52.toLocaleString() + '원' : '정보없음'}
-52주 고점 대비: ${priceFromHigh}%  |  저점 대비: +${priceFromLow}%
-${newsSection}
-Bull/Bear 분석 시 위 최근 뉴스 헤드라인을 반드시 참고하여 뉴스 기반의 구체적인 근거를 제시하세요.
-뉴스가 없는 경우 업종 트렌드, 밸류에이션, 수급 등을 근거로 작성하세요.
-
-반드시 아래 JSON 형식으로만 응답하세요 (추가 텍스트 없이):
-{
-  "businessStructure": "이 회사의 핵심 사업 구조를 3~4문장으로 설명. 주요 매출원, 경쟁우위, 성장 동력 포함",
-  "bull": ["뉴스/데이터 기반 강세 근거 1", "강세 근거 2", "강세 근거 3"],
-  "bear": ["뉴스/데이터 기반 약세 근거 1", "약세 근거 2", "약세 근거 3"],
-  "technical": {
-    "buyLine": 매수 진입 권장가 (정수),
-    "resistance1": 1차 저항선 가격 (정수),
-    "resistance2": 2차 저항선 가격 (정수),
-    "support": 지지선 가격 (정수),
-    "comment": "기술적 분석 코멘트 1~2문장"
-  }
-}
-
-기술적 분석 기준:
-- 매수라인: 현재가 대비 3~7% 아래 (단기 지지선)
-- 1차 저항선: 현재가 대비 10~20% 위 (단기 저항선)
-- 2차 저항선: 1차 대비 15~25% 위 (52주 고점 근처 중기 저항선)
-- 지지선: 매수라인 대비 5~8% 아래 (손절 기준 강력 지지선)`;
-
-      const claudeResp = await callClaude(prompt);
-      const content = claudeResp.content?.[0]?.text || '{}';
-
-      let analysis;
+      // 분기 실적 파싱
+      let latestRevenue = 0, latestOp = 0, prevRevenue = 0, prevOp = 0, revPeriod = '';
       try {
-        const m = content.match(/\{[\s\S]*\}/);
-        analysis = JSON.parse(m ? m[0] : content);
-      } catch (_) {
-        analysis = {
-          businessStructure: 'AI 분석 생성 중 오류가 발생했습니다.',
-          bull: ['분석 실패', '분석 실패', '분석 실패'],
-          bear: ['분석 실패', '분석 실패', '분석 실패'],
-          technical: { buyLine: 0, resistance1: 0, resistance2: 0, support: 0, comment: '' },
-        };
+        if (quarterData?.financeInfo) {
+          const fi = quarterData.financeInfo;
+          const confirmed = (fi.trTitleList || [])
+            .filter(t => t.isConsensus === 'N').map(t => t.key).sort().reverse();
+          if (confirmed.length >= 1) {
+            const k1 = confirmed[0];
+            const t1 = fi.trTitleList.find(t => t.key === k1);
+            revPeriod = t1?.title || k1;
+            for (const row of (fi.rowList || [])) {
+              const col = row.columns?.[k1];
+              if (!col) continue;
+              if (row.title === '매출액') latestRevenue = pn(col.value);
+              if (row.title === '영업이익') latestOp = pn(col.value);
+            }
+          }
+          if (confirmed.length >= 2) {
+            const k2 = confirmed[1];
+            for (const row of (fi.rowList || [])) {
+              const col = row.columns?.[k2];
+              if (!col) continue;
+              if (row.title === '매출액') prevRevenue = pn(col.value);
+              if (row.title === '영업이익') prevOp = pn(col.value);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 수급 데이터 (최근 5일)
+      const deals = integ?.dealTrendInfos || [];
+      let foreignTotal = 0, organTotal = 0;
+      deals.slice(0, 5).forEach(d => {
+        foreignTotal += pn(d.foreignerPureBuyQuant);
+        organTotal += pn(d.organPureBuyQuant);
+      });
+
+      // ── Bull / Bear 자동 생성 ──
+      const bull = [], bear = [];
+
+      // 1. 외국인 수급
+      if (foreignTotal > 0) bull.push(`외국인 최근 5일 순매수 ${Math.abs(foreignTotal).toLocaleString()}주 — 외국계 자금 유입 지속`);
+      else if (foreignTotal < 0) bear.push(`외국인 최근 5일 순매도 ${Math.abs(foreignTotal).toLocaleString()}주 — 외국계 자금 이탈`);
+
+      // 2. 기관 수급
+      if (organTotal > 0) bull.push(`기관 최근 5일 순매수 ${Math.abs(organTotal).toLocaleString()}주 — 기관 매집 신호`);
+      else if (organTotal < 0) bear.push(`기관 최근 5일 순매도 ${Math.abs(organTotal).toLocaleString()}주 — 기관 차익실현 중`);
+
+      // 3. 52주 위치
+      if (high52 > 0 && low52 > 0 && price > 0) {
+        const pos = (price - low52) / (high52 - low52) * 100;
+        if (pos < 30) bull.push(`52주 저점(${low52.toLocaleString()}원) 근처 — 저점 매수 구간 진입, 저점 대비 +${((price-low52)/low52*100).toFixed(1)}%`);
+        else if (pos > 80) bear.push(`52주 고점(${high52.toLocaleString()}원) 근처 — 고점 부담, 고점 대비 ${((price-high52)/high52*100).toFixed(1)}%`);
       }
 
-      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, analysis };
+      // 4. PER 밸류에이션
+      if (per > 0) {
+        if (per < 10) bull.push(`PER ${per.toFixed(1)}배 — 역사적 저평가 수준, 밸류에이션 매력도 높음`);
+        else if (per < 15) bull.push(`PER ${per.toFixed(1)}배 — 코스피 평균 대비 저평가 구간`);
+        else if (per > 40) bear.push(`PER ${per.toFixed(1)}배 — 고평가 부담, 실적 성장 없으면 추가 상승 제한적`);
+        else if (per > 25) bear.push(`PER ${per.toFixed(1)}배 — 업종 평균 대비 다소 높은 밸류에이션`);
+      }
+
+      // 5. 분기 실적 성장
+      if (latestRevenue > 0 && prevRevenue > 0) {
+        const revGrowth = ((latestRevenue - prevRevenue) / prevRevenue * 100).toFixed(1);
+        if (latestRevenue > prevRevenue) bull.push(`${revPeriod} 매출액 전분기 대비 +${revGrowth}% 증가 — 실적 성장세 확인`);
+        else bear.push(`${revPeriod} 매출액 전분기 대비 ${revGrowth}% 감소 — 실적 둔화 우려`);
+      }
+      if (latestOp !== 0 && prevOp !== 0) {
+        if (latestOp > prevOp && latestOp > 0) bull.push(`영업이익 전분기 대비 증가 (${latestOp.toLocaleString()}억원) — 수익성 개선 추세`);
+        else if (latestOp < 0) bear.push(`${revPeriod} 영업손실 ${Math.abs(latestOp).toLocaleString()}억원 — 흑자전환 여부 모니터링`);
+      }
+
+      // 6. PBR/배당
+      if (pbr > 0 && pbr < 1) bull.push(`PBR ${pbr.toFixed(2)}배 — 순자산 대비 저평가, 하방 리스크 제한적`);
+      if (divYield > 3) bull.push(`배당수익률 ${divYield.toFixed(2)}% — 높은 배당 매력으로 하방 지지`);
+
+      // 뉴스 헤드라인 기반 포인트
+      if (headlines.length > 0) {
+        const posKw = ['수주', '성장', '흑자', '급등', '돌파', '매수', '호실적', '증가', '상승', '최대'];
+        const negKw = ['하락', '손실', '적자', '부진', '우려', '하향', '매도', '감소', '악화', '리스크'];
+        headlines.forEach(h => {
+          if (bull.length < 4 && posKw.some(k => h.includes(k))) bull.push(`[뉴스] ${h}`);
+          if (bear.length < 4 && negKw.some(k => h.includes(k))) bear.push(`[뉴스] ${h}`);
+        });
+      }
+
+      // 부족분 채우기
+      const bullDefaults = ['중장기 실적 모멘텀 개선 여부 지속 모니터링 필요', '업종 내 상대적 밸류에이션 경쟁력 보유', '배당 및 자사주 매입 등 주주환원 정책 기대'];
+      const bearDefaults = ['글로벌 경기 불확실성에 따른 업종 전반 리스크 존재', '환율·금리 변동에 따른 실적 변동성 주의', '수급 공백 시 단기 변동성 확대 가능성'];
+      while (bull.length < 3) bull.push(bullDefaults[bull.length]);
+      while (bear.length < 3) bear.push(bearDefaults[bear.length]);
+
+      // ── 기술적 분석 (수학적 계산) ──
+      const buyLine = Math.round(price * 0.95);
+      const resistance1 = high52 > price
+        ? Math.min(Math.round(price * 1.15), Math.round(high52 * 0.97))
+        : Math.round(price * 1.15);
+      const resistance2 = high52 > price
+        ? Math.round(high52 * 0.99)
+        : Math.round(price * 1.35);
+      const support = low52 > 0
+        ? Math.max(Math.round(low52 * 1.01), Math.round(price * 0.87))
+        : Math.round(price * 0.87);
+
+      const pos52 = (high52 > 0 && low52 > 0)
+        ? Math.round((price - low52) / (high52 - low52) * 100)
+        : null;
+      const techComment = pos52 !== null
+        ? `현재 52주 범위 내 ${pos52}% 위치. 매수라인 ${buyLine.toLocaleString()}원 지지 확인 후 분할 매수 권장. 1차 저항선(${resistance1.toLocaleString()}원) 돌파 시 2차 저항선(${resistance2.toLocaleString()}원) 목표.`
+        : `매수라인 ${buyLine.toLocaleString()}원 지지 확인 후 진입 권장. 1차 저항선 ${resistance1.toLocaleString()}원 돌파 여부가 핵심.`;
+
+      const analysis = {
+        bull: bull.slice(0, 3),
+        bear: bear.slice(0, 3),
+        technical: { buyLine, resistance1, resistance2, support, comment: techComment },
+      };
+
+      // 재무 프로필
+      const profile = { eps, bps, divYield, roe, latestRevenue, latestOp, revPeriod };
+
+      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, analysis };
       aiReportCache.set(stockCode, { data: result, ts: Date.now() });
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });

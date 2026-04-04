@@ -418,14 +418,12 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
         </div>
       </div>
 
-      <!-- Card 2: 사업구조 -->
+      <!-- Card 2: 재무 프로필 -->
       <div class="card card-business">
         <div class="card-header">
-          <span class="icon">🏢</span> 사업구조
+          <span class="icon">🏢</span> 재무 프로필
         </div>
-        <div class="card-body">
-          <p class="business-text" id="businessText"></p>
-        </div>
+        <div class="card-body" id="profileBody"></div>
       </div>
 
       <!-- Card 3: Bull / Bear (full width) -->
@@ -580,7 +578,7 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 
   // ── 렌더링 ──
   function render(d) {
-    const { name, code, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, analysis } = d;
+    const { name, code, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, analysis } = d;
     const tech = analysis.technical || {};
 
     // ── 종목 헤더 ──
@@ -641,8 +639,42 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
         </div>`;
     }
 
-    // ── 사업구조 ──
-    document.getElementById('businessText').textContent = analysis.businessStructure || '-';
+    // ── 재무 프로필 ──
+    const p = profile || {};
+    function fmtFin(v) { if (!v && v !== 0) return '-'; if (Math.abs(v) >= 10000) return (v/10000).toFixed(1) + '조'; return v.toLocaleString() + '억'; }
+    document.getElementById('profileBody').innerHTML = `
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-label">EPS (주당순이익)</div>
+          <div class="metric-value">${p.eps > 0 ? fmt(p.eps) + '원' : '-'}</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">BPS (주당순자산)</div>
+          <div class="metric-value">${p.bps > 0 ? fmt(p.bps) + '원' : '-'}</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">배당수익률</div>
+          <div class="metric-value em">${p.divYield > 0 ? p.divYield.toFixed(2) + '%' : '-'}</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">ROE</div>
+          <div class="metric-value">${p.roe > 0 ? p.roe.toFixed(1) + '%' : '-'}</div>
+        </div>
+      </div>
+      ${p.latestRevenue > 0 ? `
+      <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">최근 분기 실적 ${p.revPeriod ? '(' + p.revPeriod + ')' : ''}</div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+          <div><span style="font-size:12px;color:#64748b;">매출액 </span><span style="font-size:15px;font-weight:700;color:#0f172a;">${fmtFin(p.latestRevenue)}</span></div>
+          <div><span style="font-size:12px;color:#64748b;">영업이익 </span><span style="font-size:15px;font-weight:700;color:${p.latestOp >= 0 ? '#dc2626' : '#2563eb'};">${fmtFin(p.latestOp)}</span></div>
+        </div>
+      </div>` : ''}
+      ${headlines && headlines.length > 0 ? `
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">최근 뉴스</div>
+        ${headlines.slice(0,3).map(h => `<div style="font-size:12px;color:#475569;padding:5px 0;border-bottom:1px solid #f8fafc;line-height:1.5;">• ${h}</div>`).join('')}
+      </div>` : ''}
+    `;
 
     // ── Bull / Bear ──
     const bull = analysis.bull || [];
