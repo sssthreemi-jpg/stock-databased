@@ -1150,17 +1150,20 @@ const server = http.createServer(async (req, res) => {
       const divYield = pn(infos.dividendYieldRatio);
       const debtRatio = pn(infos.debtRatio);
 
-      // 차트 데이터에서 이동평균 계산
-      const chartData = yearChart?.priceInfos || yearChart?.chartInfos || [];
-      const closes = chartData.map(d => pn(d.closePrice || d.close)).filter(v => v > 0);
-      const volumes = chartData.map(d => pn(d.volume || d.accumulatedTradingVolume)).filter(v => v > 0);
-      const recent = closes.slice(-60);
-      const ma20 = recent.length >= 20 ? recent.slice(-20).reduce((a,b)=>a+b,0)/20 : 0;
-      const ma60 = recent.length >= 60 ? recent.reduce((a,b)=>a+b,0)/60 : 0;
-      const ma5  = recent.length >= 5  ? recent.slice(-5).reduce((a,b)=>a+b,0)/5  : 0;
-      const recentVol = volumes.slice(-5);
-      const avgVol20  = volumes.slice(-20).length > 0 ? volumes.slice(-20).reduce((a,b)=>a+b,0)/20 : 0;
-      const currentVol = recentVol.length > 0 ? recentVol[recentVol.length-1] : 0;
+      // 차트 데이터에서 이동평균 + 거래량 계산 (ai-report와 동일 방식)
+      let ma20 = 0, ma60 = 0, ma5 = 0, avgVol20 = 0, currentVol = 0;
+      try {
+        const rawChart = yearChart;
+        const chartArr = (rawChart?.priceInfos || rawChart?.chartInfos || (Array.isArray(rawChart) ? rawChart : []));
+        const closes = chartArr.map(d => pn(d.closePrice || d.close_price || d.close || d)).filter(v => v > 0);
+        const vols   = chartArr.map(d => pn(d.accumulatedTradingVolume || d.volume || d.tradingVolume)).filter(v => v > 0);
+        if (closes.length >= 5)  ma5  = closes.slice(-5).reduce((a,b)=>a+b,0)/5;
+        if (closes.length >= 20) ma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+        if (closes.length >= 60) ma60 = closes.slice(-60).reduce((a,b)=>a+b,0)/60;
+        else if (closes.length > 0) ma60 = closes.reduce((a,b)=>a+b,0)/closes.length;
+        if (vols.length >= 20) avgVol20 = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+        if (vols.length > 0)   currentVol = vols[vols.length-1];
+      } catch (_) {}
 
       // 분기 실적
       let revenue = 0, revPrev = 0, opProfit = 0, opPrev = 0, netIncome = 0;
