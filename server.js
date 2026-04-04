@@ -212,14 +212,21 @@ const server = http.createServer(async (req, res) => {
       const sectors = (parsedUrl.searchParams.get('sectors') || '').split(',').filter(Boolean);
       const result = {};
 
+      const delay = ms => new Promise(r => setTimeout(r, ms));
       for (const sector of sectors) {
         const industryNos = SECTOR_MAP[sector];
         if (!industryNos) continue;
         const codes = [];
-        for (const no of industryNos) {
+        // 한 섹터 내 업종코드는 병렬 요청
+        const results = await Promise.allSettled(
+          industryNos.map(no =>
+            proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=30`)
+          )
+        );
+        for (const r of results) {
+          if (r.status !== 'fulfilled') continue;
           try {
-            const r = await proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=30`);
-            const data = JSON.parse(r.data);
+            const data = JSON.parse(r.value.data);
             (data.stocks || []).forEach(s => {
               if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
                 codes.push(s.itemCode);
@@ -228,6 +235,7 @@ const server = http.createServer(async (req, res) => {
           } catch (_) {}
         }
         result[sector] = codes.slice(0, 30);
+        await delay(300); // 섹터 간 딜레이로 과부하 방지
       }
 
       res.writeHead(200, {
