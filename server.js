@@ -765,12 +765,13 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 병렬로 Naver 데이터 + 뉴스 + 분기실적 요청
-      const [basicRes, integRes, quarterRes, newsRes] = await Promise.allSettled([
+      // 병렬로 Naver 데이터 + 뉴스 + 분기실적 + 연간차트 요청
+      const [basicRes, integRes, quarterRes, newsRes, yearChartRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/finance/quarter`),
         proxyRequestEucKr(`https://finance.naver.com/item/news_news.naver?code=${stockCode}&page=1`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/yearChart`),
       ]);
 
       let basic = null, integ = null, quarterData = null;
@@ -921,8 +922,59 @@ const server = http.createServer(async (req, res) => {
       while (bull.length < 3) bull.push(bullDefaults[bull.length]);
       while (bear.length < 3) bear.push(bearDefaults[bear.length]);
 
-      // ── 기술적 분석 (수학적 계산) ──
-      const buyLine = Math.round(price * 0.95);
+      // ── 연간 차트 → 이동평균 계산 ──
+      let ma20 = 0, ma60 = 0;
+      try {
+        if (yearChartRes.status === 'fulfilled') {
+          const chartData = JSON.parse(yearChartRes.value.data);
+          const prices = (chartData.priceInfos || chartData || [])
+            .map(p => pn(p.closePrice || p.close_price || p))
+            .filter(p => p > 0);
+          if (prices.length >= 20) {
+            const last20 = prices.slice(-20);
+            ma20 = Math.round(last20.reduce((a, b) => a + b, 0) / 20);
+          }
+          if (prices.length >= 60) {
+            const last60 = prices.slice(-60);
+            ma60 = Math.round(last60.reduce((a, b) => a + b, 0) / 60);
+          } else if (prices.length > 0) {
+            ma60 = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+          }
+        }
+      } catch (_) {}
+
+      // ── 매수가 3종 계산 ──
+      // 매수가① 52주 저점 기반: 저점 +3~8% 구간 (강력 지지선 바로 위)
+      const buy1 = low52 > 0
+        ? Math.round(Math.min(low52 * 1.05, price * 0.94))
+        : Math.round(price * 0.94);
+
+      // 매수가② 이동평균선 기반: MA20·MA60 중 현재가 아래의 더 높은 값
+      let buy2 = 0;
+      if (ma20 > 0 || ma60 > 0) {
+        const candidates = [ma20, ma60].filter(m => m > 0 && m < price);
+        buy2 = candidates.length > 0 ? Math.max(...candidates) : Math.round(price * 0.92);
+      } else {
+        buy2 = Math.round(price * 0.92);
+      }
+
+      // 매수가③ 피보나치 기반: 52주 고저 구간의 되돌림 레벨 중 현재가 바로 아래
+      let buy3 = 0;
+      if (high52 > 0 && low52 > 0) {
+        const range = high52 - low52;
+        const fibLevels = [
+          Math.round(high52 - range * 0.236),
+          Math.round(high52 - range * 0.382),
+          Math.round(high52 - range * 0.500),
+          Math.round(high52 - range * 0.618),
+        ];
+        const below = fibLevels.filter(l => l < price);
+        buy3 = below.length > 0 ? Math.max(...below) : fibLevels[0];
+      } else {
+        buy3 = Math.round(price * 0.90);
+      }
+
+      // ── 저항선 / 지지선 ──
       const resistance1 = high52 > price
         ? Math.min(Math.round(price * 1.15), Math.round(high52 * 0.97))
         : Math.round(price * 1.15);
@@ -936,14 +988,17 @@ const server = http.createServer(async (req, res) => {
       const pos52 = (high52 > 0 && low52 > 0)
         ? Math.round((price - low52) / (high52 - low52) * 100)
         : null;
+
+      const ma20Str = ma20 > 0 ? `MA20 ${ma20.toLocaleString()}원` : '';
+      const ma60Str = ma60 > 0 ? `MA60 ${ma60.toLocaleString()}원` : '';
       const techComment = pos52 !== null
-        ? `현재 52주 범위 내 ${pos52}% 위치. 매수라인 ${buyLine.toLocaleString()}원 지지 확인 후 분할 매수 권장. 1차 저항선(${resistance1.toLocaleString()}원) 돌파 시 2차 저항선(${resistance2.toLocaleString()}원) 목표.`
-        : `매수라인 ${buyLine.toLocaleString()}원 지지 확인 후 진입 권장. 1차 저항선 ${resistance1.toLocaleString()}원 돌파 여부가 핵심.`;
+        ? `현재 52주 범위 내 ${pos52}% 위치. ${[ma20Str, ma60Str].filter(Boolean).join(', ')}. 1차 저항선(${resistance1.toLocaleString()}원) 돌파 시 2차 저항선(${resistance2.toLocaleString()}원) 목표.`
+        : `${[ma20Str, ma60Str].filter(Boolean).join(', ')}. 1차 저항선 ${resistance1.toLocaleString()}원 돌파 여부가 핵심.`;
 
       const analysis = {
         bull: bull.slice(0, 3),
         bear: bear.slice(0, 3),
-        technical: { buyLine, resistance1, resistance2, support, comment: techComment },
+        technical: { buy1, buy2, buy3, ma20, ma60, resistance1, resistance2, support, comment: techComment },
       };
 
       // 재무 프로필

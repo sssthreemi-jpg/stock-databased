@@ -278,28 +278,33 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 
 .tech-content { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-.price-ladder { display: flex; flex-direction: column; gap: 8px; }
+.price-ladder { display: flex; flex-direction: column; gap: 6px; }
 .ladder-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px; border-radius: 10px;
+  padding: 9px 14px; border-radius: 10px;
 }
-.ladder-item.target2 { background: #fef2f2; border: 1px solid #fecaca; }
-.ladder-item.target1 { background: #fff7ed; border: 1px solid #fed7aa; }
-.ladder-item.current { background: #f0f9ff; border: 2px solid #0891b2; }
-.ladder-item.buyline { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.ladder-item.target2  { background: #fef2f2; border: 1px solid #fecaca; }
+.ladder-item.target1  { background: #fff7ed; border: 1px solid #fed7aa; }
+.ladder-item.current  { background: #f0f9ff; border: 2px solid #0891b2; }
+.ladder-item.buy1     { background: #f0fdf4; border: 1px solid #86efac; }
+.ladder-item.buy2     { background: #f0fdf4; border: 1px dashed #4ade80; }
+.ladder-item.buy3     { background: #f0fdf4; border: 1px dotted #22c55e; }
 .ladder-item.stoploss { background: #eff6ff; border: 1px solid #bfdbfe; }
 
-.ladder-icon { font-size: 16px; flex-shrink: 0; }
+.ladder-icon { font-size: 15px; flex-shrink: 0; }
 .ladder-info { flex: 1; }
-.ladder-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.ladder-label { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.ladder-sublabel { font-size: 10px; color: #94a3b8; margin-top: 1px; }
 .ladder-price {
-  font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
   margin-top: 1px;
 }
-.target2 .ladder-price { color: #dc2626; }
-.target1 .ladder-price { color: #ea580c; }
-.current .ladder-price { color: #0891b2; }
-.buyline .ladder-price { color: #059669; }
+.target2  .ladder-price { color: #dc2626; }
+.target1  .ladder-price { color: #ea580c; }
+.current  .ladder-price { color: #0891b2; }
+.buy1     .ladder-price { color: #059669; }
+.buy2     .ladder-price { color: #16a34a; }
+.buy3     .ladder-price { color: #15803d; }
 .stoploss .ladder-price { color: #2563eb; }
 
 .ladder-pct {
@@ -705,12 +710,33 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
         </div>`;
     }
 
+    function ladderRowSub(cls, icon, label, sublabel, price2, curr) {
+      const p = pct(price2, curr);
+      const pClass = price2 >= curr ? 'pct-up' : 'pct-dn';
+      return `
+        <div class="ladder-item ${cls}">
+          <span class="ladder-icon">${icon}</span>
+          <div class="ladder-info">
+            <div class="ladder-label">${label}</div>
+            <div class="ladder-sublabel">${sublabel}</div>
+            <div class="ladder-price">${fmt(price2)}원</div>
+          </div>
+          ${price2 !== curr ? `<span class="ladder-pct ${pClass}">${p}</span>` : '<span class="ladder-pct" style="background:#e0f2fe;color:#0891b2">기준</span>'}
+        </div>`;
+    }
+
+    const ma20Str = tech.ma20 > 0 ? `MA20: ${fmt(tech.ma20)}원` : '';
+    const ma60Str = tech.ma60 > 0 ? `MA60: ${fmt(tech.ma60)}원` : '';
+    const maSub = [ma20Str, ma60Str].filter(Boolean).join(' / ') || '이동평균 기반';
+
     document.getElementById('priceLadder').innerHTML =
-      ladderRow('target2', '🚀', '2차 저항선', tech.resistance2, price) +
-      ladderRow('target1', '🎯', '1차 저항선', tech.resistance1, price) +
-      ladderRow('current', '📍', '현재가',      price,           price) +
-      ladderRow('buyline', '🟢', '매수 라인',   tech.buyLine,    price) +
-      ladderRow('stoploss','🔵', '지지선',      tech.support,    price);
+      ladderRowSub('target2', '🚀', '2차 저항선', '52주 고점 근처', tech.resistance2, price) +
+      ladderRowSub('target1', '🎯', '1차 저항선', '단기 저항선',   tech.resistance1, price) +
+      ladderRowSub('current', '📍', '현재가',      '기준가',         price,            price) +
+      ladderRowSub('buy1',    '①',  '매수가①',    '52주 저점 기반', tech.buy1,        price) +
+      ladderRowSub('buy2',    '②',  '매수가②',    maSub,           tech.buy2,        price) +
+      ladderRowSub('buy3',    '③',  '매수가③',    '피보나치 기반',  tech.buy3,        price) +
+      ladderRowSub('stoploss','🔵', '지지선',      '손절 기준선',   tech.support,     price);
 
     document.getElementById('techComment').textContent = tech.comment || '-';
   }
