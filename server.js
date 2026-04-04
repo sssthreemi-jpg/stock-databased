@@ -1473,6 +1473,7 @@ const server = http.createServer(async (req, res) => {
         per, pbr, roe, eps, divYield, high52, low52, marketCap,
         score: { total: totalScore, grade, technical: techScore, fundamental: fundScore, sentiment: sentScore },
         techDetail, fundDetail, sentDetail,
+        _debug: { ma5: Math.round(ma5), ma20: Math.round(ma20), ma60: Math.round(ma60), currentVol, avgVol20: Math.round(avgVol20), chart: _chartDebug },
       };
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
