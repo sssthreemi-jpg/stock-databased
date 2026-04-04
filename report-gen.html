@@ -276,7 +276,8 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 .card-fundamental .card-header { background: linear-gradient(135deg, #334155, #475569); }
 .card-fundamental { border-left: 4px solid #334155; }
 
-.fund-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.fund-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fund-table { width: 100%; min-width: 500px; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
 .fund-table th {
   padding: 8px 12px; background: #f8fafc; font-size: 11px; font-weight: 700;
   color: #64748b; text-align: center; border-bottom: 2px solid #e2e8f0;
@@ -692,7 +693,7 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
         `<tr><td class="label">${fmtTitle(r.title)}</td>${r.values.map(v => `<td>${fmtVal(v, r.title)}</td>`).join('')}</tr>`
       ).join('');
       document.getElementById('fundamentalBody').innerHTML =
-        `<table class="fund-table"><thead><tr><th style="text-align:left">주요지표</th>${thHtml}</tr></thead><tbody>${tbodyHtml}</tbody></table>`;
+        `<div class="fund-table-wrap"><table class="fund-table"><thead><tr><th style="text-align:left">주요지표</th>${thHtml}</tr></thead><tbody>${tbodyHtml}</tbody></table></div>`;
     } else {
       document.getElementById('fundamentalBody').innerHTML =
         '<div style="color:#94a3b8;font-size:13px;padding:8px 0;">펀더멘탈 데이터를 불러올 수 없습니다.</div>';
