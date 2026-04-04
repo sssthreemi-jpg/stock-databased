@@ -319,60 +319,72 @@
 
 <div class="dashboard">
   <nav class="sidebar">
-    <h3>업종 섹터</h3>
+    <div class="sidebar-section-title">업종 섹터</div>
     <ul class="sector-list" id="sectorList"></ul>
+
+    <div class="sidebar-divider"></div>
+
     <!-- 관심종목 -->
-    <div style="border-top:1px solid #e2e8f0;margin-top:12px;padding-top:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px;margin-bottom:8px;">
-        <h3 style="margin-bottom:0;">관심종목</h3>
-        <div style="display:flex;gap:4px;">
-          <button id="syncNaverBtn" class="watchlist-add-btn" title="네이버 관심종목 연동" style="font-size:11px;">&#x21BB;</button>
-          <button id="addWatchlistBtn" class="watchlist-add-btn" title="종목 수동 추가">+</button>
-        </div>
+    <div class="sidebar-section-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;">
+      <span>관심종목</span>
+      <div style="display:flex;gap:4px;">
+        <button id="syncNaverBtn" class="watchlist-add-btn" title="네이버 관심종목 연동" style="font-size:11px;background:rgba(255,255,255,0.08);border:none;color:#94a3b8;border-radius:4px;padding:2px 6px;cursor:pointer;">&#x21BB;</button>
+        <button id="addWatchlistBtn" class="watchlist-add-btn" title="종목 수동 추가" style="background:rgba(255,255,255,0.08);border:none;color:#94a3b8;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:14px;line-height:1;">+</button>
       </div>
-      <!-- 네이버 쿠키 설정 / 종목 수동 추가 (토글) -->
-      <div id="watchlistInputArea" style="display:none;padding:0 12px 8px;">
-        <div style="display:flex;gap:4px;">
-          <input type="text" id="watchlistInput" placeholder="종목명/코드 수동추가" spellcheck="false" style="flex:1;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none;">
-          <button id="watchlistSearchBtn" style="padding:5px 10px;border:none;border-radius:6px;background:#0f4c81;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
-        </div>
-        <div id="watchlistSuggestions" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
+    </div>
+
+    <div id="watchlistInputArea" style="display:none;padding:0 12px 8px;">
+      <div style="display:flex;gap:4px;">
+        <input type="text" id="watchlistInput" placeholder="종목명/코드 수동추가" spellcheck="false"
+          style="flex:1;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:12px;outline:none;background:rgba(255,255,255,0.06);color:#e2e8f0;">
+        <button id="watchlistSearchBtn"
+          style="padding:5px 10px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
       </div>
-      <div id="naverCookieArea" style="display:none;padding:0 12px 8px;">
-        <div style="font-size:10px;color:#64748b;margin-bottom:4px;line-height:1.4;">
+      <div id="watchlistSuggestions" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
+    </div>
+
+    <div id="naverCookieArea" style="display:none;padding:0 12px 8px;">
+      <div style="font-size:10px;color:#64748b;margin-bottom:4px;line-height:1.4;">
         F12 → Network 탭 → 아무 요청 클릭 →<br>Request Headers의 <b>Cookie:</b> 값 전체 복사
       </div>
-      <textarea id="naverCookieInput" placeholder="Cookie 헤더 값을 붙여넣기&#10;(NID_AUT=...; NID_SES=... 포함)" style="width:100%;height:50px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;outline:none;resize:none;font-family:monospace;"></textarea>
-        <div style="display:flex;gap:4px;margin-top:4px;">
-          <button id="saveCookieBtn" style="flex:1;padding:5px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">저장 & 연동</button>
-          <button id="clearCookieBtn" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;color:#64748b;font-size:11px;cursor:pointer;">초기화</button>
-        </div>
-        <div id="cookieStatus" style="font-size:10px;color:#94a3b8;margin-top:4px;"></div>
+      <textarea id="naverCookieInput" placeholder="Cookie 헤더 값을 붙여넣기&#10;(NID_AUT=...; NID_SES=... 포함)"
+        style="width:100%;height:50px;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:11px;outline:none;resize:none;font-family:monospace;background:rgba(255,255,255,0.06);color:#e2e8f0;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:4px;margin-top:4px;">
+        <button id="saveCookieBtn"
+          style="flex:1;padding:5px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">저장 & 연동</button>
+        <button id="clearCookieBtn"
+          style="padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">초기화</button>
       </div>
-      <ul class="sector-list" id="watchlistItems" style="display:none;"></ul>
-      <li class="sector-item" data-sector="관심종목" id="watchlistSectorBtn" style="display:none;list-style:none;padding:10px 16px;font-size:14px;cursor:pointer;border-left:3px solid transparent;transition:all 0.15s;justify-content:space-between;align-items:center;color:#0f4c81;font-weight:600;">
-        <span>관심종목</span>
-        <span class="sector-count" id="watchlistCount" style="background:rgba(15,76,129,0.1);color:#0f4c81;">0</span>
-      </li>
+      <div id="cookieStatus" style="font-size:10px;color:#94a3b8;margin-top:4px;"></div>
     </div>
-    <div style="padding:12px 0;border-top:1px solid #e2e8f0;margin-top:12px;">
-      <a href="/reports.html" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:#0f4c81;font-size:14px;font-weight:600;text-decoration:none;border-left:3px solid transparent;transition:all 0.15s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        증권사 리포트
-      </a>
-      <a href="/quant.html" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:#c2410c;font-size:14px;font-weight:600;text-decoration:none;border-left:3px solid transparent;transition:all 0.15s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        퀀트 급등주 분석
-      </a>
-      <a href="/report-gen.html" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:#7c3aed;font-size:14px;font-weight:600;text-decoration:none;border-left:3px solid transparent;transition:all 0.15s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-        AI 증권 리포트
-      </a>
-      <a href="/scoring.html" style="display:flex;align-items:center;gap:8px;padding:10px 16px;color:#059669;font-size:14px;font-weight:600;text-decoration:none;border-left:3px solid transparent;transition:all 0.15s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        종합 투자 스코어링
-      </a>
-    </div>
+
+    <li class="sector-item" data-sector="관심종목" id="watchlistSectorBtn"
+      style="display:none;list-style:none;">
+      <span>관심종목</span>
+      <span class="sector-count" id="watchlistCount">0</span>
+    </li>
+    <ul class="sector-list" id="watchlistItems" style="display:none;"></ul>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- 메뉴 링크 -->
+    <div class="sidebar-section-title">분석 도구</div>
+    <a href="/reports.html" class="sidebar-nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      증권사 리포트
+    </a>
+    <a href="/quant.html" class="sidebar-nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      퀀트 급등주 분석
+    </a>
+    <a href="/report-gen.html" class="sidebar-nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+      AI 증권 리포트
+    </a>
+    <a href="/scoring.html" class="sidebar-nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      종합 투자 스코어링
+    </a>
   </nav>
 
   <main class="main" id="mainContent">
