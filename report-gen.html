@@ -161,6 +161,19 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 .ai-dot { width: 6px; height: 6px; background: #7c3aed; border-radius: 50%; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
 
+.market-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+}
+.market-kospi { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.market-kosdaq { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.market-other { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.sector-tag {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 12px; color: #64748b; background: #f8fafc;
+  border: 1px solid #e2e8f0; margin-left: 6px;
+}
+
 /* ── Cards ── */
 .cards-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
@@ -567,18 +580,22 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
 
   // ── 렌더링 ──
   function render(d) {
-    const { name, code, price, changeRate, marketCap, per, pbr, high52, low52, analysis } = d;
+    const { name, code, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, analysis } = d;
     const tech = analysis.technical || {};
 
     // ── 종목 헤더 ──
     const changeClass = changeRate > 0 ? 'change-up' : changeRate < 0 ? 'change-down' : 'change-flat';
+    const mktClass = marketType && marketType.includes('코스피') ? 'market-kospi'
+                   : marketType && marketType.includes('코스닥') ? 'market-kosdaq' : 'market-other';
     document.getElementById('stockHeader').innerHTML = `
       <div>
         <div class="stock-title">
           <span class="stock-name">${name}</span>
           <span class="stock-code">${code}</span>
         </div>
-        <div style="margin-top:6px;">
+        <div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+          ${marketType ? `<span class="market-badge ${mktClass}">${marketType}</span>` : ''}
+          ${sector ? `<span class="sector-tag">${sector}</span>` : ''}
           <span class="ai-badge"><span class="ai-dot"></span> AI 분석 완료</span>
         </div>
       </div>
@@ -653,11 +670,11 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
     }
 
     document.getElementById('priceLadder').innerHTML =
-      ladderRow('target2', '🚀', '2차 목표가', tech.target2, price) +
-      ladderRow('target1', '🎯', '1차 목표가', tech.target1, price) +
-      ladderRow('current', '📍', '현재가',      price,        price) +
-      ladderRow('buyline', '🟢', '매수 라인',   tech.buyLine, price) +
-      ladderRow('stoploss','🔵', '손절가',      tech.stopLoss, price);
+      ladderRow('target2', '🚀', '2차 저항선', tech.resistance2, price) +
+      ladderRow('target1', '🎯', '1차 저항선', tech.resistance1, price) +
+      ladderRow('current', '📍', '현재가',      price,           price) +
+      ladderRow('buyline', '🟢', '매수 라인',   tech.buyLine,    price) +
+      ladderRow('stoploss','🔵', '지지선',      tech.support,    price);
 
     document.getElementById('techComment').textContent = tech.comment || '-';
   }

@@ -765,17 +765,36 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 병렬로 Naver 데이터 요청
-      const [basicRes, integRes] = await Promise.allSettled([
+      // 병렬로 Naver 데이터 + 뉴스 요청
+      const [basicRes, integRes, newsRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
+        proxyRequestEucKr(`https://finance.naver.com/item/news_news.naver?code=${stockCode}&page=1`),
       ]);
 
       let basic = null, integ = null;
       try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
       try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
 
+      // 최근 뉴스 헤드라인 파싱
+      const headlines = [];
+      try {
+        if (newsRes.status === 'fulfilled') {
+          const newsHtml = newsRes.value.data;
+          const newsPattern = /<td class="title"[^>]*>\s*<a[^>]*>([^<]+)<\/a>/g;
+          let nm;
+          while ((nm = newsPattern.exec(newsHtml)) !== null && headlines.length < 6) {
+            const t = nm[1].trim();
+            if (t && t.length > 5) headlines.push(t);
+          }
+        }
+      } catch (_) {}
+
       stockName = basic?.stockName || stockName;
+
+      // 시장구분 (KOSPI/KOSDAQ) 및 업종
+      const marketType = basic?.stockExchangeType?.name || basic?.marketStatus || '';
+      const sector = basic?.industryCodeType?.name || '';
 
       function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
 
@@ -798,37 +817,45 @@ const server = http.createServer(async (req, res) => {
       const priceFromHigh = high52 > 0 ? ((price - high52) / high52 * 100).toFixed(1) : '-';
       const priceFromLow  = low52  > 0 ? ((price - low52)  / low52  * 100).toFixed(1) : '-';
 
+      const newsSection = headlines.length > 0
+        ? `\n[최근 뉴스 헤드라인]\n${headlines.map((h, i) => `${i+1}. ${h}`).join('\n')}\n`
+        : '';
+
       const prompt = `당신은 한국 주식 전문 애널리스트입니다. 아래 ${stockName}(${stockCode}) 데이터를 바탕으로 투자 분석 리포트를 JSON으로 작성하세요.
 
 [종목 데이터]
+종목명: ${stockName} (${stockCode})
+시장: ${marketType || '정보없음'} | 업종: ${sector || '정보없음'}
 현재가: ${price.toLocaleString()}원 (${changeRate > 0 ? '+' : ''}${changeRate.toFixed(2)}%)
 시가총액: ${marketCap || '정보없음'}
 PER: ${per > 0 ? per.toFixed(2) + '배' : '정보없음'}
 PBR: ${pbr > 0 ? pbr.toFixed(2) + '배' : '정보없음'}
 52주 최고가: ${high52 > 0 ? high52.toLocaleString() + '원' : '정보없음'}
 52주 최저가: ${low52 > 0 ? low52.toLocaleString() + '원' : '정보없음'}
-52주 고점 대비: ${priceFromHigh}%
-52주 저점 대비: +${priceFromLow}%
+52주 고점 대비: ${priceFromHigh}%  |  저점 대비: +${priceFromLow}%
+${newsSection}
+Bull/Bear 분석 시 위 최근 뉴스 헤드라인을 반드시 참고하여 뉴스 기반의 구체적인 근거를 제시하세요.
+뉴스가 없는 경우 업종 트렌드, 밸류에이션, 수급 등을 근거로 작성하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요 (추가 텍스트 없이):
 {
   "businessStructure": "이 회사의 핵심 사업 구조를 3~4문장으로 설명. 주요 매출원, 경쟁우위, 성장 동력 포함",
-  "bull": ["강세 근거 1 (구체적 수치나 근거 포함)", "강세 근거 2", "강세 근거 3"],
-  "bear": ["약세 근거 1 (구체적 근거)", "약세 근거 2", "약세 근거 3"],
+  "bull": ["뉴스/데이터 기반 강세 근거 1", "강세 근거 2", "강세 근거 3"],
+  "bear": ["뉴스/데이터 기반 약세 근거 1", "약세 근거 2", "약세 근거 3"],
   "technical": {
     "buyLine": 매수 진입 권장가 (정수),
-    "target1": 1차 목표가 (정수),
-    "target2": 2차 목표가 (정수),
-    "stopLoss": 손절가 (정수),
+    "resistance1": 1차 저항선 가격 (정수),
+    "resistance2": 2차 저항선 가격 (정수),
+    "support": 지지선 가격 (정수),
     "comment": "기술적 분석 코멘트 1~2문장"
   }
 }
 
 기술적 분석 기준:
-- 매수라인: 현재가 대비 3~7% 아래 지지선
-- 1차목표가: 현재가 대비 10~20% 위 저항선
-- 2차목표가: 1차 대비 15~25% 위 (52주 고점 근처)
-- 손절가: 매수라인 대비 5~8% 아래`;
+- 매수라인: 현재가 대비 3~7% 아래 (단기 지지선)
+- 1차 저항선: 현재가 대비 10~20% 위 (단기 저항선)
+- 2차 저항선: 1차 대비 15~25% 위 (52주 고점 근처 중기 저항선)
+- 지지선: 매수라인 대비 5~8% 아래 (손절 기준 강력 지지선)`;
 
       const claudeResp = await callClaude(prompt);
       const content = claudeResp.content?.[0]?.text || '{}';
@@ -842,11 +869,11 @@ PBR: ${pbr > 0 ? pbr.toFixed(2) + '배' : '정보없음'}
           businessStructure: 'AI 분석 생성 중 오류가 발생했습니다.',
           bull: ['분석 실패', '분석 실패', '분석 실패'],
           bear: ['분석 실패', '분석 실패', '분석 실패'],
-          technical: { buyLine: 0, target1: 0, target2: 0, stopLoss: 0, comment: '' },
+          technical: { buyLine: 0, resistance1: 0, resistance2: 0, support: 0, comment: '' },
         };
       }
 
-      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, per, pbr, high52, low52, analysis };
+      const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, analysis };
       aiReportCache.set(stockCode, { data: result, ts: Date.now() });
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
