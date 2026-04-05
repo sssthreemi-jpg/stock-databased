@@ -916,7 +916,7 @@ const miniCharts = {};
 // ══════════════════════════════════════════════════════
 // WATCHLIST (관심종목) — 네이버 금융 계정 연동 + 수동 추가
 // ══════════════════════════════════════════════════════
-let watchlistItems = []; // [{code, name, group}]
+// 관심종목 — localStorage 기반 수동 관리
 
 // localStorage 수동 추가 목록
 function getManualWatchlist() {
@@ -987,13 +987,6 @@ function renderWatchlistSidebar() {
   const itemsEl = document.getElementById('watchlistItems');
   const countEl = document.getElementById('watchlistCount');
   const btnEl = document.getElementById('watchlistSectorBtn');
-  const statusEl = document.getElementById('watchlistSuggestions');
-
-  // 네이버 연동 상태 표시
-  if (watchlistItems.length > 0) {
-    statusEl.innerHTML = `<span style="color:#059669;">네이버 연동 ${watchlistItems.length}종목</span>`;
-  }
-
   countEl.textContent = list.length;
 
   if (list.length === 0) {
