@@ -264,10 +264,9 @@ body {
 
   <!-- Step 1: Prompt -->
   <div class="step-card" id="stepPrompt">
-    <h3><span class="step-badge" style="background:#10b981;">1</span> ChatGPT에 프롬프트 복사하기</h3>
-    <p class="step-desc">아래 프롬프트가 자동 생성되었습니다. 복사 버튼을 누른 후 ChatGPT에 붙여넣기 하세요.</p>
-    <div class="prompt-box" id="promptBox"></div>
-    <div class="btn-row">
+    <h3><span class="step-badge" style="background:#10b981;">1</span> 프롬프트 복사 후 AI에 붙여넣기</h3>
+    <p class="step-desc">아래 프롬프트가 자동 생성되었습니다. 복사 후 원하는 AI를 선택하여 붙여넣기 하세요.</p>
+    <div class="btn-row" style="margin-bottom:16px;">
       <button class="btn-copy" id="copyBtn" onclick="copyPrompt()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         프롬프트 복사
@@ -281,6 +280,7 @@ body {
         Gemini 열기
       </a>
     </div>
+    <div class="prompt-box" id="promptBox"></div>
   </div>
 
   <!-- Step 2: Paste Response -->
