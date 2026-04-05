@@ -1594,15 +1594,55 @@ const server = http.createServer(async (req, res) => {
       let candles = [];
       try {
         if (dailyRes.status === 'fulfilled') {
-          const raw = JSON.parse(dailyRes.value.data);
-          candles = (raw || []).map(c => ({
-            date: c.localTradedAt,
-            open: pn(c.openPrice), high: pn(c.highPrice),
-            low: pn(c.lowPrice), close: pn(c.closePrice),
-            volume: pn(c.accumulatedTradingVolume),
-          })).filter(c => c.close > 0).reverse(); // 최신→과거를 과거→최신으로
+          let rawText = dailyRes.value.data;
+          // HTML 응답인 경우 스킵
+          if (rawText && !rawText.trim().startsWith('<')) {
+            const raw = JSON.parse(rawText);
+            if (Array.isArray(raw)) {
+              candles = raw.map(c => ({
+                date: c.localTradedAt,
+                open: pn(c.openPrice), high: pn(c.highPrice),
+                low: pn(c.lowPrice), close: pn(c.closePrice),
+                volume: pn(c.accumulatedTradingVolume),
+              })).filter(c => c.close > 0).reverse(); // 최신→과거를 과거→최신으로
+            }
+          }
         }
       } catch (_) {}
+
+      // price API 실패 시 yearChart로 폴백
+      if (candles.length < 30) {
+        try {
+          const ycRes = await proxyRequest(`${mobileBase}/stock/${stockCode}/yearChart`);
+          const ycData = JSON.parse(ycRes.data);
+          const priceInfos = ycData?.priceInfos || [];
+          if (priceInfos.length >= 30) {
+            candles = priceInfos.map(c => ({
+              date: c.localDate,
+              open: pn(c.openPrice), high: pn(c.highPrice),
+              low: pn(c.lowPrice), close: pn(c.closePrice),
+              volume: pn(c.accumulatedTradingVolume),
+            })).filter(c => c.close > 0);
+          }
+        } catch (_) {}
+      }
+
+      // yearChart도 실패 시 dealTrendInfos로 폴백
+      if (candles.length < 30) {
+        try {
+          const deals = integ?.dealTrendInfos || [];
+          if (deals.length >= 30) {
+            candles = deals.map(d => ({
+              date: d.date,
+              open: pn(d.openPrice) || pn(d.closePrice),
+              high: pn(d.highPrice) || pn(d.closePrice),
+              low: pn(d.lowPrice) || pn(d.closePrice),
+              close: pn(d.closePrice),
+              volume: pn(d.accumulatedTradingVolume),
+            })).filter(c => c.close > 0).reverse();
+          }
+        } catch (_) {}
+      }
 
       // 주봉 대체: dealTrendInfos에서 추출 (최근 거래일 데이터)
       let weekCandles = [];
