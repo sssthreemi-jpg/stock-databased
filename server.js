@@ -1596,25 +1596,26 @@ const server = http.createServer(async (req, res) => {
         if (dailyRes.status === 'fulfilled') {
           const raw = JSON.parse(dailyRes.value.data);
           candles = (raw || []).map(c => ({
-            date: c.localDate,
+            date: c.localTradedAt,
             open: pn(c.openPrice), high: pn(c.highPrice),
             low: pn(c.lowPrice), close: pn(c.closePrice),
             volume: pn(c.accumulatedTradingVolume),
-          })).filter(c => c.close > 0);
+          })).filter(c => c.close > 0).reverse(); // 최신→과거를 과거→최신으로
         }
       } catch (_) {}
 
-      // 주봉 파싱
+      // 주봉 대체: dealTrendInfos에서 추출 (최근 거래일 데이터)
       let weekCandles = [];
       try {
-        if (weeklyRes.status === 'fulfilled') {
-          const raw = JSON.parse(weeklyRes.value.data);
-          weekCandles = (raw || []).map(c => ({
-            date: c.localDate,
-            open: pn(c.openPrice), high: pn(c.highPrice),
-            low: pn(c.lowPrice), close: pn(c.closePrice),
-            volume: pn(c.accumulatedTradingVolume),
-          })).filter(c => c.close > 0);
+        const deals = integ?.dealTrendInfos || [];
+        // 5일 단위로 묶어서 주봉 생성
+        for (let i = 0; i < Math.min(deals.length, 50); i += 5) {
+          const chunk = deals.slice(i, i+5);
+          if (chunk.length === 0) break;
+          weekCandles.push({
+            date: chunk[0].date,
+            close: pn(chunk[0].closePrice || chunk[0].accumulatedTradingValue),
+          });
         }
       } catch (_) {}
 
