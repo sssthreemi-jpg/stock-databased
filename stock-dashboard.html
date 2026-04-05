@@ -1386,68 +1386,6 @@ document.getElementById('addWatchlistBtn').addEventListener('click', () => {
   if (area.style.display === 'block') document.getElementById('watchlistInput').focus();
 });
 
-// ↻ 버튼: 네이버 연동 토글
-document.getElementById('syncNaverBtn').addEventListener('click', () => {
-  const area = document.getElementById('naverCookieArea');
-  document.getElementById('watchlistInputArea').style.display = 'none';
-  area.style.display = area.style.display === 'none' ? 'block' : 'none';
-  // 현재 쿠키 상태 표시
-  fetch('/api/cookie').then(r => r.json()).then(d => {
-    document.getElementById('cookieStatus').textContent = d.hasCookie
-      ? '쿠키 설정됨 (' + d.preview + ')'
-      : '쿠키 미설정';
-  });
-});
-
-// 쿠키 저장 & 연동
-document.getElementById('saveCookieBtn').addEventListener('click', async () => {
-  const cookie = document.getElementById('naverCookieInput').value.trim();
-  const statusEl = document.getElementById('cookieStatus');
-  if (!cookie) { statusEl.textContent = '쿠키를 입력해주세요.'; return; }
-
-  statusEl.textContent = '저장 중...';
-  await fetch('/api/cookie', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cookie }),
-  });
-
-  statusEl.textContent = '연동 중...';
-  try {
-    const favRes = await fetch('/api/favorite');
-    const favData = await favRes.json();
-    if (favData.error === 'login_failed') {
-      statusEl.innerHTML = '<span style="color:#dc2626;">NID_AUT 쿠키 누락! Network 탭에서 Cookie 헤더를 복사해주세요</span>';
-    } else if (favData.error === 'no_favorites') {
-      statusEl.innerHTML = '<span style="color:#d97706;">로그인 성공, 관심종목이 비어있습니다</span>';
-    } else if (favData.items && favData.items.length > 0) {
-      watchlistItems = favData.items;
-      statusEl.innerHTML = `<span style="color:#059669;">연동 성공! ${watchlistItems.length}종목 로드됨</span>`;
-      await fetchWatchlistData();
-      renderWatchlistSidebar();
-      render();
-    } else {
-      statusEl.innerHTML = '<span style="color:#dc2626;">연동 실패 — 쿠키를 다시 확인해주세요</span>';
-    }
-  } catch (e) {
-    statusEl.innerHTML = `<span style="color:#dc2626;">오류: ${e.message}</span>`;
-  }
-  document.getElementById('naverCookieInput').value = '';
-});
-
-// 쿠키 초기화
-document.getElementById('clearCookieBtn').addEventListener('click', async () => {
-  await fetch('/api/cookie', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cookie: '' }),
-  });
-  watchlistItems = [];
-  renderWatchlistSidebar();
-  render();
-  document.getElementById('cookieStatus').textContent = '쿠키 초기화됨';
-});
-
 document.getElementById('watchlistSearchBtn').addEventListener('click', () => addWatchlistStock());
 document.getElementById('watchlistInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') addWatchlistStock();
