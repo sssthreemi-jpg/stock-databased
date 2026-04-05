@@ -1444,20 +1444,15 @@ const REFRESH_INTERVAL = 60000; // 60초마다 갱신
 
 async function init() {
   renderSidebar();
-  // 네이버 업종 API에서 종목 자동 로드
   await loadSectorStocks();
   renderSidebar();
-  // 네이버 관심종목 자동 연동 시도
-  await syncNaverFavorites();
   renderWatchlistSidebar();
   await fetchAllData();
   await fetchWatchlistData();
   renderWatchlistSidebar();
   render();
-  // 자동 갱신 (60초마다 주가 + 관심종목 목록 동기화)
   setInterval(async () => {
     await fetchAllData();
-    await syncNaverFavorites();
     await fetchWatchlistData();
     renderWatchlistSidebar();
     render();
