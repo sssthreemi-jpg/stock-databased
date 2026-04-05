@@ -436,8 +436,13 @@ ${quarterText || '데이터 없음'}`;
     });
 
     if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error || `서버 오류 (${resp.status})`);
+      let errMsg = `서버 오류 (${resp.status})`;
+      try {
+        const errText = await resp.text();
+        const errObj = JSON.parse(errText);
+        errMsg = errObj.error?.message || errObj.error || errMsg;
+      } catch (_) {}
+      throw new Error(errMsg);
     }
 
     const data = await resp.json();
