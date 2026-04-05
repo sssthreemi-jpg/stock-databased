@@ -938,31 +938,9 @@ function removeFromWatchlist(code) {
   saveManualWatchlist(list);
 }
 
-// 네이버 관심종목 + 수동 추가 합산
+// 관심종목 목록 (수동 추가만)
 function getWatchlist() {
-  const manual = getManualWatchlist();
-  const merged = [...watchlistItems];
-  manual.forEach(m => {
-    if (!merged.find(w => w.code === m.code)) merged.push(m);
-  });
-  return merged;
-}
-
-// 네이버 관심종목 연동
-async function syncNaverFavorites() {
-  try {
-    const res = await fetch('/api/favorite');
-    const data = await res.json();
-    if (data.error === 'no_cookie' || data.error === 'login_required') {
-      watchlistItems = [];
-      return false;
-    }
-    watchlistItems = data.items || [];
-    return watchlistItems.length > 0;
-  } catch {
-    watchlistItems = [];
-    return false;
-  }
+  return getManualWatchlist();
 }
 
 // 관심종목 데이터를 가져와서 stockDataMap에 추가
