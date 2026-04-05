@@ -1549,6 +1549,351 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── 차트매매 분석: /api/chart-analysis?code=005930 ──
+  if (parsedUrl.pathname === '/api/chart-analysis') {
+    const codeParam = parsedUrl.searchParams.get('code') || '';
+    const nameParam = parsedUrl.searchParams.get('name') || '';
+    if (!codeParam && !nameParam) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'code or name required' }));
+      return;
+    }
+    try {
+      const mobileBase = 'https://m.stock.naver.com/api';
+      let stockCode = codeParam, stockName = nameParam;
+      if (!stockCode && stockName) {
+        const r = await proxyRequest(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(stockName)}&target=stock`);
+        const d = JSON.parse(r.data);
+        const item = (d.items || []).find(i => i.category === 'stock');
+        if (item) { stockCode = item.code; stockName = item.name; }
+      }
+      if (!stockCode) throw new Error('종목코드를 찾을 수 없습니다');
+
+      // 병렬로 기본정보 + 일봉차트 + 주봉차트 + integration 요청
+      const [basicRes, integRes, dailyRes, weeklyRes] = await Promise.allSettled([
+        proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/chart/day?count=150`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/chart/week?count=30`),
+      ]);
+
+      let basic = null, integ = null;
+      try { if (basicRes.status === 'fulfilled') basic = JSON.parse(basicRes.value.data); } catch (_) {}
+      try { if (integRes.status === 'fulfilled') integ = JSON.parse(integRes.value.data); } catch (_) {}
+
+      function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
+      stockName = basic?.stockName || stockName;
+      const price = pn(basic?.closePrice);
+      const marketType = basic?.stockExchangeType?.name || '';
+      const sector = basic?.industryCodeType?.name || '';
+      const infos = {};
+      (integ?.totalInfos || []).forEach(i => { if (i.code) infos[i.code] = i.value; });
+      const high52 = pn(infos.highPriceOf52Weeks), low52 = pn(infos.lowPriceOf52Weeks);
+      const marketCap = infos.marketValue || '';
+
+      // 일봉 OHLCV 파싱
+      let candles = [];
+      try {
+        if (dailyRes.status === 'fulfilled') {
+          const raw = JSON.parse(dailyRes.value.data);
+          candles = (raw || []).map(c => ({
+            date: c.localDate,
+            open: pn(c.openPrice), high: pn(c.highPrice),
+            low: pn(c.lowPrice), close: pn(c.closePrice),
+            volume: pn(c.accumulatedTradingVolume),
+          })).filter(c => c.close > 0);
+        }
+      } catch (_) {}
+
+      // 주봉 파싱
+      let weekCandles = [];
+      try {
+        if (weeklyRes.status === 'fulfilled') {
+          const raw = JSON.parse(weeklyRes.value.data);
+          weekCandles = (raw || []).map(c => ({
+            date: c.localDate,
+            open: pn(c.openPrice), high: pn(c.highPrice),
+            low: pn(c.lowPrice), close: pn(c.closePrice),
+            volume: pn(c.accumulatedTradingVolume),
+          })).filter(c => c.close > 0);
+        }
+      } catch (_) {}
+
+      if (candles.length < 30) throw new Error('차트 데이터가 부족합니다 (최소 30일 필요)');
+
+      // ── 기술지표 계산 ──
+      const closes = candles.map(c => c.close);
+      const highs = candles.map(c => c.high);
+      const lows = candles.map(c => c.low);
+      const volumes = candles.map(c => c.volume);
+      const n = closes.length;
+
+      // 이동평균
+      const sma = (arr, p) => {
+        if (arr.length < p) return 0;
+        return arr.slice(-p).reduce((a,b) => a+b, 0) / p;
+      };
+      const ma5 = sma(closes, 5), ma20 = sma(closes, 20);
+      const ma60 = closes.length >= 60 ? sma(closes, 60) : 0;
+      const ma120 = closes.length >= 120 ? sma(closes, 120) : 0;
+      const volMa5 = sma(volumes, 5), volMa20 = sma(volumes, 20);
+
+      // 이동평균 기울기 (최근 5일간 변화)
+      const maSlope = (arr, period) => {
+        if (arr.length < period + 5) return 0;
+        const cur = sma(arr.slice(-period), period);
+        const prev = sma(arr.slice(-(period+5), -5), period);
+        return prev > 0 ? ((cur - prev) / prev * 100) : 0;
+      };
+      const ma20Slope = maSlope(closes, 20);
+      const ma60Slope = closes.length >= 65 ? maSlope(closes, 60) : 0;
+
+      // RSI(14)
+      let rsi = 50;
+      if (n >= 15) {
+        let gains = 0, losses = 0;
+        for (let i = n-14; i < n; i++) {
+          const diff = closes[i] - closes[i-1];
+          if (diff > 0) gains += diff; else losses -= diff;
+        }
+        const avgGain = gains / 14, avgLoss = losses / 14;
+        rsi = avgLoss === 0 ? 100 : Math.round(100 - 100 / (1 + avgGain / avgLoss) * 10) / 10;
+      }
+
+      // MACD(12,26,9)
+      const ema = (arr, p) => {
+        if (arr.length < p) return arr[arr.length-1] || 0;
+        const k = 2 / (p + 1);
+        let e = arr.slice(0, p).reduce((a,b)=>a+b,0) / p;
+        for (let i = p; i < arr.length; i++) e = arr[i] * k + e * (1-k);
+        return e;
+      };
+      const ema12 = ema(closes, 12), ema26 = ema(closes, 26);
+      const macdLine = ema12 - ema26;
+      // signal line approximation
+      const macdHist = [];
+      if (n >= 35) {
+        const k12 = 2/13, k26 = 2/27;
+        let e12 = closes.slice(0,12).reduce((a,b)=>a+b,0)/12;
+        let e26 = closes.slice(0,26).reduce((a,b)=>a+b,0)/26;
+        const macdArr = [];
+        for (let i = 0; i < n; i++) {
+          if (i >= 12) e12 = closes[i]*k12 + e12*(1-k12);
+          if (i >= 26) e26 = closes[i]*k26 + e26*(1-k26);
+          if (i >= 25) macdArr.push(e12 - e26);
+        }
+        const k9 = 2/10;
+        let sig = macdArr.slice(0,9).reduce((a,b)=>a+b,0)/9;
+        for (let i = 9; i < macdArr.length; i++) sig = macdArr[i]*k9 + sig*(1-k9);
+        var macdSignal = sig;
+        var macdValue = macdArr[macdArr.length-1];
+        // 골든크로스 체크 (직전 vs 현재)
+        let prevMacd = macdArr.length >= 2 ? macdArr[macdArr.length-2] : macdValue;
+        var macdGoldenCross = prevMacd < sig && macdValue >= sig;
+      } else {
+        var macdSignal = 0, macdValue = macdLine, macdGoldenCross = false;
+      }
+
+      // 볼린저밴드(20,2)
+      let bbUpper = 0, bbLower = 0, bbMiddle = ma20;
+      if (n >= 20) {
+        const slice20 = closes.slice(-20);
+        const mean = slice20.reduce((a,b)=>a+b,0)/20;
+        const std = Math.sqrt(slice20.reduce((a,b)=>a+(b-mean)**2,0)/20);
+        bbMiddle = mean; bbUpper = mean + 2*std; bbLower = mean - 2*std;
+      }
+
+      // ATR(14)
+      let atr = 0;
+      if (n >= 15) {
+        let trSum = 0;
+        for (let i = n-14; i < n; i++) {
+          const tr = Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1]));
+          trSum += tr;
+        }
+        atr = trSum / 14;
+      }
+
+      // 최근 고저점
+      const high20 = Math.max(...highs.slice(-20));
+      const low20 = Math.min(...lows.slice(-20));
+      const high60 = highs.length >= 60 ? Math.max(...highs.slice(-60)) : high20;
+      const low60 = lows.length >= 60 ? Math.min(...lows.slice(-60)) : low20;
+
+      // 전고점 (60일 내 가장 높은 고가)
+      const prevHigh = high60;
+
+      // 갭 여부 (당일)
+      const lastC = candles[n-1], prevC = candles[n-2];
+      const gapUp = lastC.low > prevC.high;
+      const gapDown = lastC.high < prevC.low;
+
+      // 장대양봉/음봉 (당일 body가 ATR 1.5배 이상)
+      const bodySize = Math.abs(lastC.close - lastC.open);
+      const isBigBullish = lastC.close > lastC.open && bodySize > atr * 1.5;
+      const isBigBearish = lastC.close < lastC.open && bodySize > atr * 1.5;
+
+      // 거래량 급증
+      const volRatio = volMa20 > 0 ? (volumes[n-1] / volMa20) : 1;
+
+      // ── 추세 판별 ──
+      const isJungBae = ma5 > ma20 && (ma60 === 0 || ma20 > ma60) && (ma120 === 0 || ma60 > ma120 || ma60 === 0);
+      const isYeokBae = ma5 < ma20 && (ma60 === 0 || ma20 < ma60);
+      let trend = '박스권';
+      if (ma20Slope > 0.5 && ma60Slope >= 0) trend = '상승추세';
+      else if (ma20Slope < -0.5 && ma60Slope <= 0) trend = '하락추세';
+
+      const weekTrend = weekCandles.length >= 10 ?
+        (weekCandles[weekCandles.length-1].close > sma(weekCandles.map(c=>c.close), 10) ? '상승' : '하락') : '확인불가';
+
+      let alignment = '혼조';
+      if (isJungBae) alignment = '정배열';
+      else if (isYeokBae) alignment = '역배열';
+
+      // ── 지지선/저항선 ──
+      // 피봇 포인트 기반
+      const pivot = (lastC.high + lastC.low + lastC.close) / 3;
+      const r1 = 2 * pivot - lastC.low;
+      const s1 = 2 * pivot - lastC.high;
+      const r2 = pivot + (lastC.high - lastC.low);
+      const s2 = pivot - (lastC.high - lastC.low);
+
+      // 주요 지지/저항
+      const resistances = [high20, prevHigh, r1, r2, bbUpper].filter(v => v > price).sort((a,b)=>a-b);
+      const supports = [low20, ma20, ma60, s1, s2, bbLower].filter(v => v > 0 && v < price).sort((a,b)=>b-a);
+
+      const resistance1 = resistances[0] || Math.round(price * 1.1);
+      const resistance2 = resistances[1] || Math.round(price * 1.2);
+      const support1 = supports[0] || Math.round(price * 0.95);
+      const support2 = supports[1] || Math.round(price * 0.9);
+
+      // ── 매수 시그널 판단 ──
+      const buySignals = [];
+      const excludeSignals = [];
+
+      // 매수 시그널
+      if (price > ma20 && price < ma20 * 1.03 && ma20Slope > 0)
+        buySignals.push('20일선 지지 후 반등');
+      if (price > high20 * 0.98 && volRatio > 1.5)
+        buySignals.push('박스권 상단 돌파 + 거래량 증가');
+      if (price > prevHigh * 0.97 && volRatio > 1.5)
+        buySignals.push('전고점 돌파 시도 + 거래량 동반');
+      if (isJungBae && ma20Slope > 0.3)
+        buySignals.push('정배열 초기 전환');
+      if (macdGoldenCross)
+        buySignals.push('MACD 골든크로스');
+      if (rsi >= 40 && rsi <= 65 && closes[n-1] > closes[n-2])
+        buySignals.push('RSI 건강한 상승 구간 ('+rsi+')');
+      if (isBigBullish && price >= ma20 * 0.97)
+        buySignals.push('눌림목 장대양봉 출현');
+      if (price > bbMiddle && closes[n-2] < bbMiddle)
+        buySignals.push('볼린저밴드 중심선 재돌파');
+
+      // 매수 제외 조건
+      if (price > high20 && volRatio < 1.0)
+        excludeSignals.push('거래량 없이 돌파');
+      if (price > prevHigh * 0.95 && price < prevHigh && resistances.length > 0)
+        excludeSignals.push('전고점 바로 아래 저항 강함');
+      if (rsi > 75)
+        excludeSignals.push('RSI 과열 (' + rsi + ')');
+      if (isBigBearish && closes[n-1] < closes[n-2])
+        excludeSignals.push('장대음봉 후 회복 실패');
+      if (ma20Slope < -0.3 && ma60Slope < -0.3)
+        excludeSignals.push('20일선·60일선 모두 하향');
+      if (price > ma20 * 1.15)
+        excludeSignals.push('이격 과다 (MA20 대비 +' + ((price/ma20-1)*100).toFixed(1) + '%)');
+
+      // ── 매매가 산출 ──
+      const aggressiveBuy = Math.round(Math.max(ma5, price * 0.99));
+      const conservativeBuy = Math.round(Math.max(ma20, support1));
+      const additionalBuy = Math.round(Math.max(ma60 || ma20 * 0.95, support2));
+      const stopLoss = Math.round(Math.min(support1 - atr * 0.5, price - atr * 1.5));
+      const target1 = Math.round(resistance1);
+      const target2 = Math.round(resistance2);
+
+      // 기대수익/손실
+      const expectedReturn1 = price > 0 ? ((target1 - price) / price * 100) : 0;
+      const expectedReturn2 = price > 0 ? ((target2 - price) / price * 100) : 0;
+      const expectedLoss = price > 0 ? ((stopLoss - price) / price * 100) : 0;
+      const riskReward = Math.abs(expectedLoss) > 0 ? (expectedReturn1 / Math.abs(expectedLoss)) : 0;
+
+      // ── 종합 판단 ──
+      let grade = '진입 금지';
+      const buyScore = buySignals.length;
+      const excludeScore = excludeSignals.length;
+
+      if (buyScore >= 4 && excludeScore === 0 && riskReward >= 2.0) grade = '강한 매수 후보';
+      else if (buyScore >= 3 && excludeScore <= 1 && riskReward >= 1.5) grade = '조건부 매수 후보';
+      else if (buyScore >= 2 && trend !== '하락추세' && riskReward >= 1.2) grade = '눌림 대기';
+      else if (trend === '상승추세' && excludeScore <= 1) grade = '보유 관찰';
+      else grade = '진입 금지';
+
+      // 경고
+      const warnings = [];
+      if (volRatio > 5) warnings.push('거래량 왜곡 가능성 (평균 대비 ' + volRatio.toFixed(1) + '배)');
+      if (gapUp && bodySize > atr * 2) warnings.push('갭 과열 종목');
+      if (expectedReturn1 < 3) warnings.push('기대수익률 미미');
+      if (riskReward < 1.5) warnings.push('손익비 부족 (R/R ' + riskReward.toFixed(2) + ')');
+
+      // 차트패턴 요약
+      let patternSummary = '';
+      if (price > high20 && volRatio > 1.5) patternSummary = '박스권 돌파';
+      else if (price > ma20 && price < ma20 * 1.03) patternSummary = '20일선 눌림목';
+      else if (price < ma20 && price > ma60) patternSummary = '단기 조정 중';
+      else if (price > bbUpper) patternSummary = '볼린저밴드 상단 이탈 (과열)';
+      else if (price < bbLower) patternSummary = '볼린저밴드 하단 이탈 (과매도)';
+      else if (isBigBullish) patternSummary = '장대양봉 출현';
+      else if (isBigBearish) patternSummary = '장대음봉 출현';
+      else patternSummary = trend === '상승추세' ? '상승 추세 진행' : trend === '하락추세' ? '하락 추세 진행' : '박스권 횡보';
+
+      const result = {
+        code: stockCode, name: stockName, price, marketType, sector, marketCap,
+        high52, low52,
+        analysis: {
+          trend: { upper: weekTrend, short: trend, alignment, ma20Slope: +ma20Slope.toFixed(2), ma60Slope: +ma60Slope.toFixed(2) },
+          indicators: {
+            ma: { ma5: Math.round(ma5), ma20: Math.round(ma20), ma60: Math.round(ma60), ma120: Math.round(ma120) },
+            rsi, macd: { value: +macdValue.toFixed(2), signal: +macdSignal.toFixed(2), goldenCross: macdGoldenCross },
+            bb: { upper: Math.round(bbUpper), middle: Math.round(bbMiddle), lower: Math.round(bbLower) },
+            atr: Math.round(atr),
+            volume: { current: volumes[n-1], ma5: Math.round(volMa5), ma20: Math.round(volMa20), ratio: +volRatio.toFixed(2) },
+          },
+          levels: { high20, low20, high60, low60, prevHigh, resistance1, resistance2, support1, support2 },
+          pattern: patternSummary,
+          gap: gapUp ? '갭상승' : gapDown ? '갭하락' : '없음',
+          bigCandle: isBigBullish ? '장대양봉' : isBigBearish ? '장대음봉' : '없음',
+        },
+        trading: {
+          grade,
+          prices: {
+            aggressiveBuy, conservativeBuy, additionalBuy, stopLoss, target1, target2,
+          },
+          returns: {
+            expectedReturn1: +expectedReturn1.toFixed(2),
+            expectedReturn2: +expectedReturn2.toFixed(2),
+            expectedLoss: +expectedLoss.toFixed(2),
+            riskReward: +riskReward.toFixed(2),
+          },
+          buySignals, excludeSignals, warnings,
+          strategy: {
+            entry: buySignals.length >= 2 ? `${buySignals.slice(0,2).join(' + ')} 확인 시 진입` : '조건 충족 대기',
+            hold: buySignals.length > 0 ? '진입 후 보류 조건: ' + (excludeSignals[0] || '없음') : '진입 불가',
+            exit: `1차 목표(${target1.toLocaleString()}원) 도달 시 30~50% 매도, 2차 목표(${target2.toLocaleString()}원) 도달 시 추가 매도`,
+            stopDesc: `손절가(${stopLoss.toLocaleString()}원) 이탈 시 전량 매도 (ATR 기반)`,
+          },
+        },
+        candles: candles.slice(-60).map(c => ({ d: c.date, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
+      };
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(result));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── 집중 종목 분석 레포트: /api/deep-report ──
   if (parsedUrl.pathname === '/api/deep-report' && req.method === 'POST') {
     let body = '';
