@@ -1213,6 +1213,10 @@ function getStocks(sector) {
     const watchCodes = getWatchlist().map(w => w.code);
     return all.filter(s => watchCodes.includes(s.code));
   }
+  if (sector === '보유종목') {
+    const holdCodes = getHoldings().map(w => w.code);
+    return all.filter(s => holdCodes.includes(s.code));
+  }
   return all.filter(s => s.sector === sector);
 }
 
