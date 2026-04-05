@@ -1034,15 +1034,35 @@ function renderWatchlistSidebar() {
     statusEl.innerHTML = `<span style="color:#059669;">네이버 연동 ${watchlistItems.length}종목</span>`;
   }
 
+  countEl.textContent = list.length;
+
   if (list.length === 0) {
     btnEl.style.display = 'none';
-    countEl.textContent = '0';
+    itemsEl.style.display = 'none';
     return;
   }
 
-  countEl.textContent = list.length;
   btnEl.style.display = 'flex';
+  itemsEl.style.display = 'block';
 
+  // 수동 추가 종목 목록 렌더링
+  const manual = getManualWatchlist();
+  itemsEl.innerHTML = manual.map(w => `
+    <li class="watchlist-item">
+      <span class="watchlist-item-name" onclick="currentSector='관심종목';render();">${w.name}</span>
+      <button class="watchlist-del" data-code="${w.code}" title="삭제">&times;</button>
+    </li>
+  `).join('');
+
+  // 삭제 버튼
+  itemsEl.querySelectorAll('.watchlist-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      removeFromWatchlist(btn.dataset.code);
+      delete stockDataMap[btn.dataset.code];
+      renderWatchlistSidebar();
+      render();
+    });
+  });
 }
 
 function getAllStocks() {
