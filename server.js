@@ -216,7 +216,7 @@ const server = http.createServer(async (req, res) => {
       for (const sector of sectors) {
         const industryNos = SECTOR_MAP[sector];
         if (!industryNos) continue;
-        const codes = [];
+        const stockMap = {};
         // 한 섹터 내 업종코드는 병렬 요청
         const results = await Promise.allSettled(
           industryNos.map(no =>
@@ -228,13 +228,19 @@ const server = http.createServer(async (req, res) => {
           try {
             const data = JSON.parse(r.value.data);
             (data.stocks || []).forEach(s => {
-              if (s.itemCode && !codes.includes(s.itemCode) && s.itemCode.endsWith('0')) {
-                codes.push(s.itemCode);
+              if (s.itemCode && s.itemCode.endsWith('0') && !stockMap[s.itemCode]) {
+                const mv = parseFloat(String(s.marketValue || '0').replace(/,/g, '')) || 0;
+                stockMap[s.itemCode] = mv;
               }
             });
           } catch (_) {}
         }
-        result[sector] = codes.slice(0, 30);
+        // 시총순 정렬 후 상위 30개
+        const sorted = Object.entries(stockMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 30)
+          .map(([code]) => code);
+        result[sector] = sorted;
         await delay(300); // 섹터 간 딜레이로 과부하 방지
       }
 
