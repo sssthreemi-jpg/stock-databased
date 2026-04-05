@@ -1743,8 +1743,9 @@ const server = http.createServer(async (req, res) => {
       if (ma20Slope > 0.5 && ma60Slope >= 0) trend = '상승추세';
       else if (ma20Slope < -0.5 && ma60Slope <= 0) trend = '하락추세';
 
-      const weekTrend = weekCandles.length >= 10 ?
-        (weekCandles[weekCandles.length-1].close > sma(weekCandles.map(c=>c.close), 10) ? '상승' : '하락') : '확인불가';
+      // 상위 추세: 60일선 기울기 기반으로 판단
+      const weekTrend = ma60 > 0 ? (ma60Slope > 0.3 ? '상승' : ma60Slope < -0.3 ? '하락' : '횡보') :
+        (candles.length >= 40 ? (closes[n-1] > sma(closes, 40) ? '상승' : '하락') : '확인불가');
 
       let alignment = '혼조';
       if (isJungBae) alignment = '정배열';
