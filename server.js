@@ -1911,6 +1911,11 @@ const server = http.createServer(async (req, res) => {
       }
       if (conservativeBuy <= 0) conservativeBuy = Math.round(price * 0.95);
       if (additionalBuy <= 0) additionalBuy = Math.round(price * 0.90);
+      // 매수가는 현재가 이하여야 함
+      if (aggressiveBuy > price) aggressiveBuy = Math.round(price * 0.99);
+      if (conservativeBuy > aggressiveBuy) conservativeBuy = Math.round(aggressiveBuy * 0.96);
+      if (additionalBuy > conservativeBuy) additionalBuy = Math.round(conservativeBuy * 0.96);
+      // 공격적 > 보수적 > 추가매수 순서 보장
       if (aggressiveBuy <= conservativeBuy) conservativeBuy = Math.round(aggressiveBuy * 0.96);
       if (conservativeBuy <= additionalBuy) additionalBuy = Math.round(conservativeBuy * 0.96);
 
