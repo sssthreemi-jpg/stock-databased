@@ -412,10 +412,13 @@ document.getElementById('bulkAnalyzeBtn').addEventListener('click', async () => 
       if (!resolved) { bulkResults.push({ name: stocks[i], error: '종목 없음' }); continue; }
 
       const r = await fetch(`/api/chart-analysis?code=${resolved.code}`);
-      if (!r.ok) { bulkResults.push({ name: resolved.name, code: resolved.code, error: '분석 실패' }); continue; }
-
       const d = await r.json();
-      if (d.error) { bulkResults.push({ name: resolved.name, code: resolved.code, error: d.error }); continue; }
+      if (!r.ok || d.error) {
+        const errMsg = d.error || '분석 실패';
+        const isETF = errMsg.includes('ETF') || errMsg.includes('ETN') || errMsg.includes('펀드') || errMsg.includes('리츠');
+        bulkResults.push({ name: resolved.name, code: resolved.code, error: isETF ? 'ETF/펀드 제외' : errMsg });
+        continue;
+      }
 
       bulkResults.push({
         name: d.name, code: d.code, price: d.price,
