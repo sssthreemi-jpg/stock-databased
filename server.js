@@ -220,7 +220,7 @@ const server = http.createServer(async (req, res) => {
         // 한 섹터 내 업종코드는 병렬 요청 (전체 종목을 가져와서 시총순 정렬)
         const results = await Promise.allSettled(
           industryNos.map(no =>
-            proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=100`)
+            proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=200`)
           )
         );
         for (const r of results) {
