@@ -1582,6 +1582,13 @@ const server = http.createServer(async (req, res) => {
 
       function pn(v) { if (!v) return 0; return parseFloat(String(v).replace(/,/g, '')) || 0; }
       stockName = basic?.stockName || stockName;
+
+      // ETF/펀드/리츠 등 비주식 종목 체크
+      const endType = basic?.stockEndType || '';
+      if (['etf', 'etn', 'elw', 'fund', 'reits'].includes(endType.toLowerCase())) {
+        throw new Error(`${stockName}은(는) ${endType.toUpperCase()} 종목으로 차트매매 분석 대상이 아닙니다.`);
+      }
+
       const price = pn(basic?.closePrice);
       const marketType = basic?.stockExchangeType?.name || '';
       const sector = basic?.industryCodeType?.name || '';
