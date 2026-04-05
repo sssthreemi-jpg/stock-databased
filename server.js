@@ -1980,7 +1980,7 @@ const server = http.createServer(async (req, res) => {
             expectedLoss: +expectedLoss.toFixed(2),
             riskReward: +riskReward.toFixed(2),
           },
-          buySignals, excludeSignals, warnings,
+          buySignals, excludeSignals, warnings, buyMethods,
           strategy: {
             entry: buySignals.length >= 2 ? `${buySignals.slice(0,2).join(' + ')} 확인 시 진입` : '조건 충족 대기',
             hold: buySignals.length > 0 ? '진입 후 보류 조건: ' + (excludeSignals[0] || '없음') : '진입 불가',
