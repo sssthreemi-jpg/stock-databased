@@ -745,50 +745,76 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
       `<li><span class="bear-dot"></span><span>${t}</span></li>`
     ).join('');
 
-    // ── 차트분석 ──
-    function ladderRow(cls, icon, label, price2, curr) {
-      const p = pct(price2, curr);
-      const pClass = price2 >= curr ? 'pct-up' : 'pct-dn';
-      return `
-        <div class="ladder-item ${cls}">
-          <span class="ladder-icon">${icon}</span>
-          <div class="ladder-info">
-            <div class="ladder-label">${label}</div>
-            <div class="ladder-price">${fmt(price2)}원</div>
+    // ── 차트매매 분석 (chart-analysis API 연동) ──
+    (async function loadChartAnalysis() {
+      const caBody = document.getElementById('chartAnalysisBody');
+      try {
+        const caRes = await fetch(`/api/chart-analysis?code=${selCode}`);
+        if (!caRes.ok) throw new Error('차트 데이터 로딩 실패');
+        const ca = await caRes.json();
+        if (ca.error) throw new Error(ca.error);
+        const t = ca.trading, a = ca.analysis, ind = a.indicators;
+        const gc = t.grade==='강한 매수 후보'?'#dc2626':t.grade==='조건부 매수 후보'?'#f59e0b':t.grade==='눌림 대기'?'#3b82f6':t.grade==='보유 관찰'?'#6b7280':'#1e293b';
+
+        caBody.innerHTML = `
+          <div style="text-align:center;margin-bottom:16px;">
+            <span style="display:inline-block;padding:8px 24px;border-radius:10px;background:${gc};color:#fff;font-size:16px;font-weight:800;">${t.grade}</span>
+            <div style="font-size:12px;color:#64748b;margin-top:6px;">${a.pattern} | 추세: ${a.trend.short} | 배열: ${a.trend.alignment} | R/R ${t.returns.riskReward}배</div>
           </div>
-          ${price2 !== curr ? `<span class="ladder-pct ${pClass}">${p}</span>` : '<span class="ladder-pct" style="background:#e0f2fe;color:#0891b2">기준</span>'}
-        </div>`;
-    }
 
-    function ladderRowSub(cls, icon, label, sublabel, price2, curr) {
-      const p = pct(price2, curr);
-      const pClass = price2 >= curr ? 'pct-up' : 'pct-dn';
-      return `
-        <div class="ladder-item ${cls}">
-          <span class="ladder-icon">${icon}</span>
-          <div class="ladder-info">
-            <div class="ladder-label">${label}</div>
-            <div class="ladder-sublabel">${sublabel}</div>
-            <div class="ladder-price">${fmt(price2)}원</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px;">
+            <div style="background:#fef2f2;border-radius:8px;padding:10px;text-align:center;border:1px solid #fecaca;">
+              <div style="font-size:10px;color:#991b1b;font-weight:700;">공격적 매수</div>
+              <div style="font-size:16px;font-weight:800;color:#dc2626;">${fmt(t.prices.aggressiveBuy)}</div>
+            </div>
+            <div style="background:#fef2f2;border-radius:8px;padding:10px;text-align:center;border:1px solid #fecaca;">
+              <div style="font-size:10px;color:#991b1b;font-weight:700;">보수적 매수</div>
+              <div style="font-size:16px;font-weight:800;color:#dc2626;">${fmt(t.prices.conservativeBuy)}</div>
+            </div>
+            <div style="background:#f1f5f9;border-radius:8px;padding:10px;text-align:center;border:1px solid #e2e8f0;">
+              <div style="font-size:10px;color:#475569;font-weight:700;">손절가</div>
+              <div style="font-size:16px;font-weight:800;color:#64748b;">${fmt(t.prices.stopLoss)}</div>
+            </div>
+            <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center;border:1px solid #bbf7d0;">
+              <div style="font-size:10px;color:#166534;font-weight:700;">1차 목표</div>
+              <div style="font-size:16px;font-weight:800;color:#059669;">${fmt(t.prices.target1)}</div>
+            </div>
+            <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center;border:1px solid #bbf7d0;">
+              <div style="font-size:10px;color:#166534;font-weight:700;">2차 목표</div>
+              <div style="font-size:16px;font-weight:800;color:#059669;">${fmt(t.prices.target2)}</div>
+            </div>
+            <div style="background:#eff6ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #bfdbfe;">
+              <div style="font-size:10px;color:#1e40af;font-weight:700;">손익비(R/R)</div>
+              <div style="font-size:16px;font-weight:800;color:${t.returns.riskReward>=1.5?'#059669':'#dc2626'};">${t.returns.riskReward}배</div>
+            </div>
           </div>
-          ${price2 !== curr ? `<span class="ladder-pct ${pClass}">${p}</span>` : '<span class="ladder-pct" style="background:#e0f2fe;color:#0891b2">기준</span>'}
-        </div>`;
-    }
 
-    const ma20Str = tech.ma20 > 0 ? `MA20: ${fmt(tech.ma20)}원` : '';
-    const ma60Str = tech.ma60 > 0 ? `MA60: ${fmt(tech.ma60)}원` : '';
-    const maSub = [ma20Str, ma60Str].filter(Boolean).join(' / ') || '이동평균 기반';
+          ${(t.buyMethods && t.buyMethods.length > 0) ? `<div style="padding:10px 14px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:12px;">
+            <div style="font-size:11px;font-weight:700;color:#166534;margin-bottom:4px;">매수가 산출 근거</div>
+            ${t.buyMethods.map(m => `<div style="font-size:12px;color:#15803d;line-height:1.7;">• ${m}</div>`).join('')}
+          </div>` : ''}
 
-    document.getElementById('priceLadder').innerHTML =
-      ladderRowSub('target2', '🚀', '2차 저항선', '52주 고점 근처', tech.resistance2, price) +
-      ladderRowSub('target1', '🎯', '1차 저항선', '단기 저항선',   tech.resistance1, price) +
-      ladderRowSub('current', '📍', '현재가',      '기준가',         price,            price) +
-      ladderRowSub('buy1',    '①',  '매수가①',    maSub,           tech.buy1,        price) +
-      ladderRowSub('buy2',    '②',  '매수가②',    '피보나치 기반',  tech.buy2,        price) +
-      ladderRowSub('buy3',    '③',  '매수가③',    `직전저점(${fmt(tech.recentSwingLow)}원)+MA20 중간값`, tech.buy3, price) +
-      ladderRowSub('stoploss','🔵', '지지선',      '손절 기준선',   tech.support,     price);
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div style="font-size:12px;">
+              <div style="font-weight:700;color:#166534;margin-bottom:6px;">매수 시그널 (${t.buySignals.length})</div>
+              ${t.buySignals.map(s => `<div style="color:#15803d;line-height:1.7;">✓ ${s}</div>`).join('') || '<div style="color:#94a3b8;">없음</div>'}
+            </div>
+            <div style="font-size:12px;">
+              <div style="font-weight:700;color:#991b1b;margin-bottom:6px;">매수 제외 (${t.excludeSignals.length})</div>
+              ${t.excludeSignals.map(s => `<div style="color:#dc2626;line-height:1.7;">✗ ${s}</div>`).join('') || '<div style="color:#94a3b8;">없음</div>'}
+            </div>
+          </div>
 
-    document.getElementById('techComment').textContent = tech.comment || '-';
+          <div style="font-size:12px;color:#475569;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;line-height:1.7;">
+            <b>지표:</b> RSI ${ind.rsi} | MACD ${ind.macd.value} ${ind.macd.goldenCross?'<b style="color:#059669;">(골든크로스)</b>':''} | BB ${fmt(ind.bb.lower)}~${fmt(ind.bb.upper)} | ATR ${fmt(ind.atr)} | 거래량 MA20대비 ${ind.volume.ratio}배
+            <br><b>전략:</b> ${t.strategy.entry}
+            <br><b>분할매도:</b> ${t.strategy.exit}
+          </div>
+        `;
+      } catch (e) {
+        caBody.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:16px;">차트 분석 데이터를 불러올 수 없습니다. (${e.message})</div>`;
+      }
+    })();
   }
 
   // ── 초기화 ──
