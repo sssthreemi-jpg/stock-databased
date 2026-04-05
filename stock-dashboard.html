@@ -928,8 +928,7 @@ function saveManualWatchlist(list) {
 function addToWatchlist(code, name) {
   const list = getManualWatchlist();
   if (list.find(w => w.code === code)) return false;
-  if (watchlistItems.find(w => w.code === code)) return false;
-  list.push({ code, name, group: '수동 추가' });
+  list.push({ code, name });
   saveManualWatchlist(list);
   return true;
 }
