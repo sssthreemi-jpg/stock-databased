@@ -1652,14 +1652,19 @@ async function init() {
   await loadSectorStocks();
   renderSidebar();
   renderWatchlistSidebar();
+  renderHoldingsSidebar();
   await fetchAllData();
   await fetchWatchlistData();
+  await fetchHoldingsData();
   renderWatchlistSidebar();
+  renderHoldingsSidebar();
   render();
   setInterval(async () => {
     await fetchAllData();
     await fetchWatchlistData();
+    await fetchHoldingsData();
     renderWatchlistSidebar();
+    renderHoldingsSidebar();
     render();
   }, REFRESH_INTERVAL);
 }
