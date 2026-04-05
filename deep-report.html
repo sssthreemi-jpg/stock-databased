@@ -685,13 +685,21 @@ function renderReport(name, code, meta, rpt, annualPeriods, annualRows, irNote) 
   if (biz.ceo) bizHtml += `<div class="sub-section"><div class="sub-title">최대주주 및 CEO</div>${nl2p(biz.ceo)}</div>`;
   document.getElementById('businessContent').innerHTML = bizHtml || '<p>데이터를 불러올 수 없습니다.</p>';
 
-  // 2. Investment Points
+  // 2. Industry
+  const ind = rpt.industry || {};
+  let indHtml = '';
+  if (ind.overview) indHtml += `<div class="sub-section"><div class="sub-title">산업 개요 및 시장 분석</div>${nl2p(ind.overview)}</div>`;
+  if (ind.competition) indHtml += `<div class="sub-section"><div class="sub-title">경쟁 구도</div>${nl2p(ind.competition)}</div>`;
+  if (ind.trend) indHtml += `<div class="sub-section"><div class="sub-title">최근 동향 및 뉴스</div>${nl2p(ind.trend)}</div>`;
+  document.getElementById('industryContent').innerHTML = indHtml || '<p>데이터를 불러올 수 없습니다.</p>';
+
+  // 3. Investment Points
   const points = rpt.investmentPoints || [];
   document.getElementById('investContent').innerHTML = points.map((p, i) =>
     `<div class="invest-point"><h4>${i+1}) ${p.title}</h4>${nl2p(p.detail)}</div>`
   ).join('') || '<p>데이터를 불러올 수 없습니다.</p>';
 
-  // 3. Financial
+  // 4. Financial
   let finHtml = '';
   if (annualPeriods.length > 0 && annualRows.length > 0) {
     finHtml += '<table class="fin-table"><thead><tr><th>항목</th>';
@@ -708,11 +716,11 @@ function renderReport(name, code, meta, rpt, annualPeriods, annualRows, irNote) 
 
   const fin = rpt.financial || {};
   let finAnalysis = '';
-  if (fin.revenueAnalysis) finAnalysis += `<div class="sub-section" style="margin-top:20px;"><div class="sub-title">매출/이익 분석</div>${nl2p(fin.revenueAnalysis)}</div>`;
-  if (fin.balanceSheet) finAnalysis += `<div class="sub-section"><div class="sub-title">자본/부채 분석</div>${nl2p(fin.balanceSheet)}</div>`;
+  if (fin.revenueAnalysis) finAnalysis += `<div class="sub-section" style="margin-top:20px;"><div class="sub-title">매출/이익 심층 분석</div>${nl2p(fin.revenueAnalysis)}</div>`;
+  if (fin.balanceSheet) finAnalysis += `<div class="sub-section"><div class="sub-title">재무건전성 분석</div>${nl2p(fin.balanceSheet)}</div>`;
   document.getElementById('financialContent').innerHTML = finAnalysis;
 
-  // 4. Valuation
+  // 5. Valuation
   const val = rpt.valuation || {};
   document.getElementById('valuationContent').innerHTML = `
     <div class="val-grid">
@@ -722,11 +730,17 @@ function renderReport(name, code, meta, rpt, annualPeriods, annualRows, irNote) 
     ${val.scenarios ? `<div style="margin-top:16px;"><div class="sub-title">시나리오 분석</div>${nl2p(val.scenarios)}</div>` : ''}
   `;
 
-  // 5. Risks
+  // 6. Risks
   const risks = rpt.risks || [];
   document.getElementById('riskContent').innerHTML = risks.map((r, i) =>
     `<div class="risk-point"><h4>${i+1}) ${r.title}</h4>${nl2p(r.detail)}</div>`
   ).join('') || '<p>데이터를 불러올 수 없습니다.</p>';
+
+  // 7. Catalyst
+  const catalysts = rpt.catalyst || [];
+  document.getElementById('catalystContent').innerHTML = catalysts.map((c, i) =>
+    `<div class="invest-point" style="border-left-color:#f97316;"><h4>${i+1}) ${c.title}</h4>${nl2p(c.detail)}</div>`
+  ).join('') || '<p>촉매 정보가 없습니다.</p>';
 
   // 6. Summary
   document.getElementById('summaryContent').innerHTML =
