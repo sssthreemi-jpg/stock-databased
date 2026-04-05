@@ -1000,6 +1000,133 @@ function getWatchlist() {
   return getManualWatchlist();
 }
 
+// ══════════════════════════════════════════════════════
+// HOLDINGS (보유종목) — localStorage 기반
+// ══════════════════════════════════════════════════════
+function getHoldings() {
+  try { return JSON.parse(localStorage.getItem('holdings_manual') || '[]'); } catch { return []; }
+}
+function saveHoldings(list) {
+  localStorage.setItem('holdings_manual', JSON.stringify(list));
+}
+function addToHoldings(code, name) {
+  const list = getHoldings();
+  if (list.find(w => w.code === code)) return false;
+  list.push({ code, name });
+  saveHoldings(list);
+  return true;
+}
+function removeFromHoldings(code) {
+  saveHoldings(getHoldings().filter(w => w.code !== code));
+}
+
+function renderHoldingsSidebar() {
+  const list = getHoldings();
+  const itemsEl = document.getElementById('holdingItems');
+  const countEl = document.getElementById('holdingCount');
+  const btnEl = document.getElementById('holdingSectorBtn');
+
+  countEl.textContent = list.length;
+
+  if (list.length === 0) {
+    btnEl.style.display = 'none';
+    itemsEl.style.display = 'none';
+    return;
+  }
+
+  btnEl.style.display = 'flex';
+  itemsEl.style.display = 'block';
+
+  itemsEl.innerHTML = list.map(w => `
+    <li class="watchlist-item">
+      <span class="watchlist-item-name" onclick="currentSector='보유종목';render();">${w.name}</span>
+      <button class="watchlist-del" data-code="${w.code}" title="삭제">&times;</button>
+    </li>
+  `).join('');
+
+  itemsEl.querySelectorAll('.watchlist-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      removeFromHoldings(btn.dataset.code);
+      renderHoldingsSidebar();
+      render();
+    });
+  });
+}
+
+async function fetchHoldingsData() {
+  const list = getHoldings();
+  const newCodes = list.filter(w => !stockDataMap[w.code]).map(w => w.code);
+  if (newCodes.length === 0) return;
+
+  setStatus('loading', '보유종목 데이터 로딩 중...');
+  for (let i = 0; i < newCodes.length; i += 5) {
+    const batch = newCodes.slice(i, i + 5);
+    const results = await Promise.allSettled(batch.map(async code => {
+      const [basic, integration, targetInfo, quarter] = await Promise.allSettled([
+        fetchStockBasic(code),
+        fetchStockIntegration(code),
+        fetchTargetPrice(code),
+        fetchQuarterFinance(code),
+      ]);
+      if (basic.status === 'rejected') throw basic.reason;
+      return {
+        code,
+        data: parseStockData(
+          basic.value,
+          integration.status === 'fulfilled' ? integration.value : null,
+          null,
+          targetInfo.status === 'fulfilled' ? targetInfo.value : null,
+          quarter.status === 'fulfilled' ? quarter.value : null,
+          code,
+        )
+      };
+    }));
+    results.forEach(r => {
+      if (r.status === 'fulfilled' && r.value.data) {
+        stockDataMap[r.value.code] = r.value.data;
+        sectorMap[r.value.code] = sectorMap[r.value.code] || '보유종목';
+      }
+    });
+  }
+  setStatus('live', '보유종목 로딩 완료');
+}
+
+async function addHoldingStock() {
+  const input = document.getElementById('holdingInput');
+  const suggestions = document.getElementById('holdingSuggestions');
+  const query = input.value.trim();
+  if (!query) return;
+
+  suggestions.textContent = '검색 중...';
+  try {
+    let code = '', name = '';
+    if (/^\d{6}$/.test(query)) {
+      code = query;
+      const res = await fetch(`/api/naver?url=${encodeURIComponent(`https://m.stock.naver.com/api/stock/${code}/basic`)}`);
+      const data = await res.json();
+      name = data.stockName || code;
+    } else {
+      const res = await fetch(`/api/naver?url=${encodeURIComponent(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(query)}&target=stock`)}`);
+      const data = await res.json();
+      const item = (data.items || []).find(i => i.category === 'stock');
+      if (item) { code = item.code; name = item.name; }
+    }
+    if (!code) { suggestions.textContent = '종목을 찾을 수 없습니다.'; return; }
+    if (!addToHoldings(code, name)) {
+      suggestions.textContent = `${name}은(는) 이미 추가되어 있습니다.`;
+      return;
+    }
+    await fetchHoldingsData();
+    renderHoldingsSidebar();
+    render();
+    input.value = '';
+    suggestions.textContent = `${name} (${code}) 추가 완료`;
+    setTimeout(() => { suggestions.textContent = ''; }, 2000);
+  } catch (e) {
+    suggestions.textContent = '오류: ' + e.message;
+  }
+}
+
 // 관심종목 데이터를 가져와서 stockDataMap에 추가
 async function fetchWatchlistData() {
   const list = getWatchlist();
