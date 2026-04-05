@@ -137,6 +137,53 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
       <button class="btn-primary" id="analyzeBtn" disabled>분석 시작</button>
     </div>
   </div>
+  <!-- 일괄 분석 -->
+  <div class="bulk-card">
+    <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> 일괄 종목 분석</h2>
+    <div class="bulk-tabs">
+      <div class="bulk-tab active" data-mode="text">직접 입력</div>
+      <div class="bulk-tab" data-mode="csv">CSV 파일</div>
+    </div>
+    <div class="bulk-input-area" id="bulkTextArea">
+      <textarea id="bulkTextInput" placeholder="종목코드 또는 종목명을 입력 (한 줄에 하나, 또는 쉼표로 구분)&#10;예: 005930, 000660, 에코프로&#10;삼성SDI&#10;LG에너지솔루션"></textarea>
+    </div>
+    <div class="bulk-input-area" id="bulkFileArea" style="display:none">
+      <div class="bulk-file-area" id="dropZone">
+        <div style="font-size:13px;color:#64748b;font-weight:600;">CSV 파일을 드래그하거나 클릭하여 업로드</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">종목코드 또는 종목명이 포함된 CSV</div>
+        <input type="file" id="csvFile" accept=".csv,.txt">
+      </div>
+      <div id="csvPreview" style="font-size:11px;color:#64748b;margin-top:6px;"></div>
+    </div>
+    <button class="btn-bulk" id="bulkAnalyzeBtn">일괄 분석 시작</button>
+    <div class="bulk-progress" id="bulkProgress" style="display:none">
+      <span id="bulkStatusText">분석 중...</span>
+      <div class="bar"><div class="bar-fill" id="bulkBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- 일괄 분석 결과 -->
+  <div class="bulk-result" id="bulkResult">
+    <div class="card">
+      <h3><span class="icon" style="background:linear-gradient(135deg,#0f172a,#334155)">T</span>일괄 분석 결과</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span id="bulkSummaryText" style="font-size:12px;color:#64748b;"></span>
+        <button class="btn-print" onclick="exportCSV()" style="font-size:11px;padding:6px 14px;">CSV 다운로드</button>
+      </div>
+      <div class="bulk-table-wrap" style="max-height:500px;overflow-y:auto;">
+        <table class="bulk-table" id="bulkTable">
+          <thead>
+            <tr>
+              <th>종목명</th><th>현재가</th><th>공격적매수</th><th>보수적매수</th>
+              <th>손절가</th><th>1차목표</th><th>2차목표</th><th>손익비</th><th>최종의견</th>
+            </tr>
+          </thead>
+          <tbody id="bulkTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="loading" id="loading"><div class="spinner"></div><div style="font-size:15px;color:#475569;font-weight:600">차트 데이터 수집 및 기술지표 분석 중...</div></div>
   <div class="report" id="report"></div>
 </div>
