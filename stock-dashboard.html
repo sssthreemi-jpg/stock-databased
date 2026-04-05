@@ -1497,6 +1497,20 @@ init();
 function openReport(code, name) {
   window.open(`report-gen.html?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`, '_blank');
 }
+
+// Mobile sidebar toggle
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const sidebarEl = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+function toggleMobileSidebar() {
+  const isOpen = sidebarEl.classList.contains('mobile-open');
+  sidebarEl.classList.toggle('mobile-open');
+  sidebarOverlay.classList.toggle('active');
+  mobileMenuBtn.innerHTML = isOpen ? '&#9776;' : '&#10005;';
+}
+mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+sidebarOverlay.addEventListener('click', toggleMobileSidebar);
 </script>
 </body>
 </html>
