@@ -402,6 +402,31 @@
 
     <div class="sidebar-divider"></div>
 
+    <!-- 보유종목 -->
+    <div class="sidebar-section-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;">
+      <span>보유종목</span>
+      <button id="addHoldingBtn" class="watchlist-add-btn" title="종목 추가" style="font-size:14px;line-height:1;">+</button>
+    </div>
+
+    <div id="holdingInputArea" style="display:none;padding:0 12px 8px;">
+      <div style="display:flex;gap:4px;">
+        <input type="text" id="holdingInput" placeholder="종목명 또는 코드 입력" spellcheck="false"
+          style="flex:1;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none;">
+        <button id="holdingSearchBtn"
+          style="padding:5px 10px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
+      </div>
+      <div id="holdingSuggestions" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
+    </div>
+
+    <li class="sector-item" data-sector="보유종목" id="holdingSectorBtn"
+      style="display:none;list-style:none;">
+      <span>보유종목</span>
+      <span class="sector-count" id="holdingCount">0</span>
+    </li>
+    <ul class="sector-list" id="holdingItems" style="display:none;"></ul>
+
+    <div class="sidebar-divider"></div>
+
     <!-- 메뉴 링크 -->
     <div class="sidebar-section-title">분석 도구</div>
     <a href="/reports.html" class="sidebar-nav-link">
