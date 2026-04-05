@@ -1570,7 +1570,7 @@ updateTime();
 // + 버튼: 수동 추가 토글
 document.getElementById('addWatchlistBtn').addEventListener('click', () => {
   const area = document.getElementById('watchlistInputArea');
-  document.getElementById('naverCookieArea').style.display = 'none';
+  document.getElementById('holdingInputArea').style.display = 'none';
   area.style.display = area.style.display === 'none' ? 'block' : 'none';
   if (area.style.display === 'block') document.getElementById('watchlistInput').focus();
 });
@@ -1583,6 +1583,22 @@ document.getElementById('watchlistInput').addEventListener('keydown', e => {
 // 관심종목 전체보기 클릭
 document.getElementById('watchlistSectorBtn').addEventListener('click', () => {
   currentSector = '관심종목';
+  render();
+});
+
+// 보유종목 이벤트
+document.getElementById('addHoldingBtn').addEventListener('click', () => {
+  const area = document.getElementById('holdingInputArea');
+  document.getElementById('watchlistInputArea').style.display = 'none';
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  if (area.style.display === 'block') document.getElementById('holdingInput').focus();
+});
+document.getElementById('holdingSearchBtn').addEventListener('click', () => addHoldingStock());
+document.getElementById('holdingInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addHoldingStock();
+});
+document.getElementById('holdingSectorBtn').addEventListener('click', () => {
+  currentSector = '보유종목';
   render();
 });
 
