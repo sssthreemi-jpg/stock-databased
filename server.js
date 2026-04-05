@@ -1641,7 +1641,7 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (_) {}
 
-      if (candles.length < 30) throw new Error(`차트 데이터가 부족합니다 (현재 ${candles.length}일, 최소 30일 필요). price API: ${dailyRes.status}`);
+      if (candles.length < 30) throw new Error(`차트 데이터가 부족합니다 (현재 ${candles.length}일, 최소 30일 필요)`);
 
       // ── 기술지표 계산 ──
       const closes = candles.map(c => c.close);
