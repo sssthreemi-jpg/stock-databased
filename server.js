@@ -1827,8 +1827,16 @@ const server = http.createServer(async (req, res) => {
         excludeSignals.push('이격 과다 (MA20 대비 +' + ((price/ma20-1)*100).toFixed(1) + '%)');
 
       // ── 매매가 산출 ──
-      const aggressiveBuy = Math.round(Math.max(ma5, price * 0.99));
-      const conservativeBuy = Math.round(Math.max(ma20, support1));
+      // 공격적 매수가: 현재가 근처 (돌파 직후 진입)
+      // 보수적 매수가: 눌림목/지지선 (더 낮은 가격)
+      let aggressiveBuy = Math.round(price * 0.99);
+      let conservativeBuy = Math.round(Math.min(ma20, price * 0.95));
+      if (conservativeBuy <= 0) conservativeBuy = Math.round(price * 0.95);
+      // 공격적이 보수적보다 반드시 높아야 함
+      if (aggressiveBuy <= conservativeBuy) {
+        aggressiveBuy = Math.round(price * 0.99);
+        conservativeBuy = Math.round(price * 0.95);
+      }
       const additionalBuy = Math.round(Math.max(ma60 || ma20 * 0.95, support2));
       const stopLoss = Math.round(Math.min(support1 - atr * 0.5, price - atr * 1.5));
       const target1 = Math.round(resistance1);
