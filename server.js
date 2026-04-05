@@ -1541,7 +1541,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+        const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || '').trim().replace(/[^\x20-\x7E]/g, '');
         if (!OPENAI_API_KEY) {
           res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ error: 'OPENAI_API_KEY가 설정되지 않았습니다. Render 환경변수를 확인해주세요.' }));
