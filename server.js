@@ -217,23 +217,40 @@ const server = http.createServer(async (req, res) => {
         const industryNos = SECTOR_MAP[sector];
         if (!industryNos) continue;
         const stockMap = {};
-        // 한 섹터 내 업종코드는 병렬 요청 (전체 종목을 가져와서 시총순 정렬)
+        const addStocks = (data) => {
+          (data.stocks || []).forEach(s => {
+            if (s.itemCode && s.itemCode.endsWith('0') && !stockMap[s.itemCode]) {
+              const mv = parseFloat(String(s.marketValue || '0').replace(/,/g, '')) || 0;
+              stockMap[s.itemCode] = mv;
+            }
+          });
+        };
+        // 1페이지 (최대 100개) 병렬 요청
         const results = await Promise.allSettled(
           industryNos.map(no =>
-            proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=200`)
+            proxyRequest(`${mobileBase}/stocks/industry/${no}?page=1&pageSize=100`)
           )
         );
-        for (const r of results) {
-          if (r.status !== 'fulfilled') continue;
+        const needPage2 = [];
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].status !== 'fulfilled') continue;
           try {
-            const data = JSON.parse(r.value.data);
-            (data.stocks || []).forEach(s => {
-              if (s.itemCode && s.itemCode.endsWith('0') && !stockMap[s.itemCode]) {
-                const mv = parseFloat(String(s.marketValue || '0').replace(/,/g, '')) || 0;
-                stockMap[s.itemCode] = mv;
-              }
-            });
+            const data = JSON.parse(results[i].value.data);
+            addStocks(data);
+            if ((data.totalCount || 0) > 100) needPage2.push(industryNos[i]);
           } catch (_) {}
+        }
+        // 100개 초과 업종은 2페이지 추가 요청
+        if (needPage2.length > 0) {
+          const p2 = await Promise.allSettled(
+            needPage2.map(no =>
+              proxyRequest(`${mobileBase}/stocks/industry/${no}?page=2&pageSize=100`)
+            )
+          );
+          for (const r of p2) {
+            if (r.status !== 'fulfilled') continue;
+            try { addStocks(JSON.parse(r.value.data)); } catch (_) {}
+          }
         }
         // 시총순 정렬 후 상위 30개
         const sorted = Object.entries(stockMap)
