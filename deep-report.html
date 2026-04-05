@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>집중 종목 분석</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  background: #f1f5f9; color: #1e293b; min-height: 100vh;
+}
+
+/* Header */
+.page-header {
+  background: linear-gradient(135deg, #1e3a5f, #0f4c81);
+  padding: 18px 32px; display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+.page-header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+.page-header .subtitle { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+.back-btn {
+  margin-left: auto; padding: 6px 14px; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+  color: #fff; font-size: 12px; cursor: pointer; text-decoration: none;
+  transition: background 0.15s;
+}
+.back-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* Container */
+.container { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+
+/* Search */
+.search-card {
+  background: #fff; border-radius: 16px; padding: 28px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 24px;
+}
+.search-card h2 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
+.search-row { display: flex; gap: 10px; align-items: flex-start; }
+.search-wrap { position: relative; flex: 1; }
+.search-wrap input {
+  width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px;
+  font-size: 15px; outline: none; transition: border-color 0.15s;
+}
+.search-wrap input:focus { border-color: #0f4c81; }
+.dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 100; display: none;
+  max-height: 240px; overflow-y: auto;
+}
+.dropdown-item {
+  padding: 10px 16px; cursor: pointer; font-size: 14px;
+  display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9;
+}
+.dropdown-item:hover { background: #f1f5f9; }
+.dropdown-item .code { color: #94a3b8; font-size: 12px; }
+
+.btn-primary {
+  padding: 12px 24px; background: linear-gradient(135deg, #0f4c81, #1e3a5f);
+  color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: all 0.2s;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,76,129,0.3); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* IR Input */
+.ir-card {
+  background: #fff; border-radius: 16px; padding: 24px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 24px;
+}
+.ir-card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.ir-card h3 .badge { font-size: 10px; background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.ir-card textarea {
+  width: 100%; height: 120px; padding: 12px 16px; border: 2px solid #e2e8f0;
+  border-radius: 10px; font-size: 13px; outline: none; resize: vertical;
+  font-family: inherit; line-height: 1.6; transition: border-color 0.15s;
+}
+.ir-card textarea:focus { border-color: #0f4c81; }
+
+/* Loading */
+.loading-overlay {
+  display: none; background: #fff; border-radius: 16px; padding: 48px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 24px; text-align: center;
+}
+.loading-overlay.active { display: block; }
+.spinner {
+  width: 48px; height: 48px; border: 4px solid #e2e8f0;
+  border-top-color: #0f4c81; border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 15px; color: #475569; font-weight: 600; }
+.loading-sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+/* Report */
+.report { display: none; }
+.report.active { display: block; }
+
+.report-header {
+  background: linear-gradient(135deg, #0f4c81, #1a5276);
+  border-radius: 16px; padding: 32px; margin-bottom: 24px; color: #fff;
+  box-shadow: 0 4px 20px rgba(15,76,129,0.3);
+}
+.report-header h2 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.report-header .meta { font-size: 13px; color: rgba(255,255,255,0.7); display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+
+.section-card {
+  background: #fff; border-radius: 16px; padding: 28px 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px;
+}
+.section-card h3 {
+  font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 2px solid #f1f5f9;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-card h3 .sec-num {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.section-card p, .section-card li { font-size: 14px; line-height: 1.8; color: #334155; }
+.section-card p + p { margin-top: 10px; }
+
+.sub-section { margin-bottom: 20px; }
+.sub-section:last-child { margin-bottom: 0; }
+.sub-title {
+  font-size: 14px; font-weight: 700; color: #0f4c81; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sub-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #0f4c81; }
+
+/* Investment Points */
+.invest-point {
+  background: #f8fafc; border-radius: 12px; padding: 20px 24px; margin-bottom: 12px;
+  border-left: 4px solid #3b82f6;
+}
+.invest-point h4 { font-size: 14px; font-weight: 700; color: #1e40af; margin-bottom: 8px; }
+.invest-point p { font-size: 13px; line-height: 1.7; color: #475569; }
+
+/* Risk */
+.risk-point {
+  background: #fef2f2; border-radius: 12px; padding: 20px 24px; margin-bottom: 12px;
+  border-left: 4px solid #ef4444;
+}
+.risk-point h4 { font-size: 14px; font-weight: 700; color: #b91c1c; margin-bottom: 8px; }
+.risk-point p { font-size: 13px; line-height: 1.7; color: #475569; }
+
+/* Valuation */
+.val-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 16px; margin-top: 12px; }
+.val-box {
+  background: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0;
+}
+.val-box h4 { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.val-box p { font-size: 13px; line-height: 1.7; color: #334155; }
+
+/* Summary */
+.summary-box {
+  background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+  border-radius: 12px; padding: 24px; border: 1px solid #bfdbfe;
+}
+.summary-box p { font-size: 14px; line-height: 1.8; color: #1e3a5f; font-weight: 500; }
+
+/* Financial table */
+.fin-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.fin-table th { background: #f1f5f9; padding: 8px 12px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+.fin-table th:first-child { text-align: left; }
+.fin-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.fin-table td:first-child { text-align: left; font-weight: 600; color: #0f172a; }
+
+/* Print */
+.btn-print {
+  padding: 10px 20px; background: #fff; border: 2px solid #e2e8f0;
+  border-radius: 10px; font-size: 13px; font-weight: 600; color: #475569;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-print:hover { border-color: #0f4c81; color: #0f4c81; }
+
+@media print {
+  .page-header, .search-card, .ir-card, .btn-print, .back-btn { display: none !important; }
+  .report { display: block !important; }
+  .section-card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+}
+
+@media (max-width: 640px) {
+  .container { padding: 16px 12px 48px; }
+  .search-card, .section-card, .ir-card { padding: 20px 16px; }
+  .search-row { flex-direction: column; }
+  .report-header { padding: 24px 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>집중 종목 분석 레포트</h1>
+    <div class="subtitle">ChatGPT 기반 Deep Analysis Report</div>
+  </div>
+  <a href="/" class="back-btn">대시보드</a>
+</div>
+
+<div class="container">
+  <!-- Search -->
+  <div class="search-card">
+    <h2>종목 검색</h2>
+    <div class="search-row">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="종목명 또는 종목코드 입력 (예: 삼성전자)" autocomplete="off">
+        <div class="dropdown" id="dropdown"></div>
+      </div>
+      <button class="btn-primary" id="analyzeBtn" disabled>분석 시작</button>
+    </div>
+  </div>
+
+  <!-- IR Note -->
+  <div class="ir-card">
+    <h3>IR 통화 내용 <span class="badge">선택사항</span></h3>
+    <textarea id="irNote" placeholder="IR 담당자와의 통화 내용, 탐방 메모 등을 입력하면 분석에 반영됩니다.&#10;&#10;예) 2026년 매출 가이던스 450억, 신규 공장 3Q 준공 예정, CEO 교체 후 R&D 중심 경영 전환..."></textarea>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">분석 레포트 생성 중...</div>
+    <div class="loading-sub" id="loadingStatus">네이버 금융 데이터 수집 중</div>
+  </div>
+
+  <!-- Report Output -->
+  <div class="report" id="report">
+    <div class="report-header" id="reportHeader"></div>
+
+    <!-- 1. 사업내용 -->
+    <div class="section-card" id="secBusiness">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#3b82f6,#6366f1);">1</span> 사업내용</h3>
+      <div id="businessContent"></div>
+    </div>
+
+    <!-- 2. 투자포인트 -->
+    <div class="section-card" id="secInvest">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#10b981,#059669);">2</span> 투자포인트</h3>
+      <div id="investContent"></div>
+    </div>
+
+    <!-- 3. 재무분석 -->
+    <div class="section-card" id="secFinancial">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#f59e0b,#d97706);">3</span> 재무분석</h3>
+      <div id="finTableWrap"></div>
+      <div id="financialContent"></div>
+    </div>
+
+    <!-- 4. Valuation -->
+    <div class="section-card" id="secValuation">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);">4</span> Valuation</h3>
+      <div id="valuationContent"></div>
+    </div>
+
+    <!-- 5. 리스크 -->
+    <div class="section-card" id="secRisk">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#ef4444,#dc2626);">5</span> 리스크</h3>
+      <div id="riskContent"></div>
+    </div>
+
+    <!-- 6. Summary -->
+    <div class="section-card" id="secSummary">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#0f4c81,#1e3a5f);">6</span> Summary</h3>
+      <div id="summaryContent"></div>
+    </div>
+
+    <!-- IR 메모 -->
+    <div class="section-card" id="secIR" style="display:none;">
+      <h3><span class="sec-num" style="background:linear-gradient(135deg,#64748b,#475569);">+</span> IR 통화 메모</h3>
+      <div id="irContent"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn-print" onclick="window.print()">PDF / 인쇄</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const searchInput = document.getElementById('searchInput');
+const dropdown = document.getElementById('dropdown');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const loading = document.getElementById('loading');
+const loadingStatus = document.getElementById('loadingStatus');
+const report = document.getElementById('report');
+
+let selectedCode = '', selectedName = '';
+let debounceTimer = null;
+
+// Autocomplete
+searchInput.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 1) { dropdown.style.display = 'none'; return; }
+  debounceTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`/api/naver?url=${encodeURIComponent(`https://ac.stock.naver.com/ac?q=${q}&target=stock`)}`);
+      const d = await r.json();
+      const items = (d.items || []).filter(i => i.category === 'stock');
+      if (items.length === 0) { dropdown.style.display = 'none'; return; }
+      dropdown.innerHTML = items.slice(0, 8).map(i =>
+        `<div class="dropdown-item" data-code="${i.code}" data-name="${i.name}">
+          <span>${i.name}</span><span class="code">${i.code}</span>
+        </div>`
+      ).join('');
+      dropdown.style.display = 'block';
+      dropdown.querySelectorAll('.dropdown-item').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedCode = el.dataset.code;
+          selectedName = el.dataset.name;
+          searchInput.value = `${selectedName} (${selectedCode})`;
+          dropdown.style.display = 'none';
+          analyzeBtn.disabled = false;
+        });
+      });
+    } catch (e) { dropdown.style.display = 'none'; }
+  }, 300);
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && selectedCode) analyzeBtn.click();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) dropdown.style.display = 'none';
+});
+
+// Analyze
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedCode) return;
+  analyzeBtn.disabled = true;
+  report.classList.remove('active');
+  loading.classList.add('active');
+
+  try {
+    // Step 1: Collect financial data from Naver
+    loadingStatus.textContent = '네이버 금융 데이터 수집 중...';
+    const mBase = 'https://m.stock.naver.com/api';
+    const [basicR, integR, quarterR, annualR] = await Promise.all([
+      fetch(`/api/naver?url=${encodeURIComponent(`${mBase}/stock/${selectedCode}/basic`)}`).then(r=>r.json()).catch(()=>null),
+      fetch(`/api/naver?url=${encodeURIComponent(`${mBase}/stock/${selectedCode}/integration`)}`).then(r=>r.json()).catch(()=>null),
+      fetch(`/api/naver?url=${encodeURIComponent(`${mBase}/stock/${selectedCode}/finance/quarter`)}`).then(r=>r.json()).catch(()=>null),
+      fetch(`/api/naver?url=${encodeURIComponent(`${mBase}/stock/${selectedCode}/finance/annual`)}`).then(r=>r.json()).catch(()=>null),
+    ]);
+
+    // Parse financial summary
+    const pn = v => { if (!v) return 0; return parseFloat(String(v).replace(/,/g,'')) || 0; };
+    const basic = basicR || {};
+    const integ = integR || {};
+    const infos = {};
+    (integ.totalInfos || []).forEach(i => { if (i.code) infos[i.code] = i.value; });
+
+    const price = pn(basic.closePrice);
+    const stockName = basic.stockName || selectedName;
+    const marketType = basic?.stockExchangeType?.name || '';
+    const sector = basic?.industryCodeType?.name || '';
+    const marketCap = infos.marketValue || '';
+    const per = pn(infos.per), pbr = pn(infos.pbr), eps = pn(infos.eps);
+    const roe = pn(infos.roe), debtRatio = pn(infos.debtRatio);
+    const high52 = pn(infos.highPriceOf52Weeks), low52 = pn(infos.lowPriceOf52Weeks);
+
+    // Annual financials
+    let annualText = '';
+    const annualPeriods = [];
+    const annualRows = [];
+    try {
+      const fi = annualR?.financeInfo;
+      if (fi?.trTitleList?.length && fi?.rowList?.length) {
+        const periods = fi.trTitleList.slice(-5);
+        annualPeriods.push(...periods.map(t => t.title || t.key));
+        const wantRows = ['매출액','영업이익','당기순이익','PER','PBR','EPS','ROE','ROA','부채비율','배당수익률'];
+        for (const row of fi.rowList) {
+          if (!wantRows.some(w => row.title?.includes(w))) continue;
+          const vals = periods.map(p => {
+            const col = row.columns?.[p.key];
+            return col?.value != null ? col.value : '-';
+          });
+          annualRows.push({ title: row.title, values: vals });
+          annualText += `${row.title}: ${vals.join(' | ')}\n`;
+        }
+      }
+    } catch (_) {}
+
+    // Quarter financials
+    let quarterText = '';
+    try {
+      const fi = quarterR?.financeInfo;
+      if (fi?.trTitleList?.length && fi?.rowList?.length) {
+        const periods = fi.trTitleList.slice(-4);
+        const wantRows = ['매출액','영업이익','당기순이익'];
+        for (const row of fi.rowList) {
+          if (!wantRows.some(w => row.title?.includes(w))) continue;
+          const vals = periods.map(p => {
+            const col = row.columns?.[p.key];
+            return col?.value != null ? col.value : '-';
+          });
+          quarterText += `${row.title} (분기): ${periods.map((p,i)=>`${p.title||p.key}: ${vals[i]}`).join(', ')}\n`;
+        }
+      }
+    } catch (_) {}
+
+    // 수급
+    const deals = integ.dealTrendInfos || [];
+    let foreignNet = 0, organNet = 0;
+    deals.slice(0, 5).forEach(d => {
+      foreignNet += pn(d.foreignerPureBuyQuant);
+      organNet += pn(d.organPureBuyQuant);
+    });
+
+    const financialData = `시장: ${marketType}
+업종: ${sector}
+현재가: ${price.toLocaleString()}원
+시가총액: ${marketCap}
+PER: ${per}, PBR: ${pbr}, EPS: ${eps}
+ROE: ${roe}%, 부채비율: ${debtRatio}%
+52주 최고: ${high52.toLocaleString()}원, 52주 최저: ${low52.toLocaleString()}원
+외국인 5일 순매수: ${foreignNet.toLocaleString()}주
+기관 5일 순매수: ${organNet.toLocaleString()}주
+
+=== 연간 실적 ===
+${annualText || '데이터 없음'}
+
+=== 분기 실적 ===
+${quarterText || '데이터 없음'}`;
+
+    // Step 2: Call ChatGPT via server
+    loadingStatus.textContent = 'ChatGPT 분석 레포트 생성 중... (30초~1분 소요)';
+    const irNote = document.getElementById('irNote').value.trim();
+
+    const resp = await fetch('/api/deep-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stockCode: selectedCode, stockName, financialData, irNote }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || `서버 오류 (${resp.status})`);
+    }
+
+    const data = await resp.json();
+    const rpt = data.report;
+
+    if (rpt.parseError) {
+      throw new Error('ChatGPT 응답 파싱 실패. 다시 시도해주세요.');
+    }
+
+    // Step 3: Render report
+    loading.classList.remove('active');
+    renderReport(stockName, selectedCode, { price, marketType, sector, marketCap, per, pbr }, rpt, annualPeriods, annualRows, irNote);
+    report.classList.add('active');
+    report.scrollIntoView({ behavior: 'smooth' });
+
+  } catch (e) {
+    loading.classList.remove('active');
+    alert('분석 실패: ' + e.message);
+  } finally {
+    analyzeBtn.disabled = false;
+  }
+});
+
+function nl2p(text) {
+  if (!text) return '';
+  return text.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+}
+
+function renderReport(name, code, meta, rpt, annualPeriods, annualRows, irNote) {
+  const today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+
+  // Header
+  document.getElementById('reportHeader').innerHTML = `
+    <h2>${name} (${code})</h2>
+    <div class="meta">
+      <span>${meta.marketType} | ${meta.sector}</span>
+      <span>현재가 ${meta.price.toLocaleString()}원</span>
+      <span>시총 ${meta.marketCap}</span>
+      <span>PER ${meta.per} | PBR ${meta.pbr}</span>
+      <span>발행일 ${today}</span>
+    </div>`;
+
+  // 1. Business
+  const biz = rpt.business || {};
+  let bizHtml = '';
+  if (biz.model) bizHtml += `<div class="sub-section"><div class="sub-title">비즈니스 모델</div>${nl2p(biz.model)}</div>`;
+  if (biz.ceo) bizHtml += `<div class="sub-section"><div class="sub-title">최대주주 및 CEO</div>${nl2p(biz.ceo)}</div>`;
+  document.getElementById('businessContent').innerHTML = bizHtml || '<p>데이터를 불러올 수 없습니다.</p>';
+
+  // 2. Investment Points
+  const points = rpt.investmentPoints || [];
+  document.getElementById('investContent').innerHTML = points.map((p, i) =>
+    `<div class="invest-point"><h4>${i+1}) ${p.title}</h4>${nl2p(p.detail)}</div>`
+  ).join('') || '<p>데이터를 불러올 수 없습니다.</p>';
+
+  // 3. Financial
+  let finHtml = '';
+  if (annualPeriods.length > 0 && annualRows.length > 0) {
+    finHtml += '<table class="fin-table"><thead><tr><th>항목</th>';
+    annualPeriods.forEach(p => finHtml += `<th>${p}</th>`);
+    finHtml += '</tr></thead><tbody>';
+    annualRows.forEach(r => {
+      finHtml += `<tr><td>${r.title}</td>`;
+      r.values.forEach(v => finHtml += `<td>${v}</td>`);
+      finHtml += '</tr>';
+    });
+    finHtml += '</tbody></table>';
+  }
+  document.getElementById('finTableWrap').innerHTML = finHtml;
+
+  const fin = rpt.financial || {};
+  let finAnalysis = '';
+  if (fin.revenueAnalysis) finAnalysis += `<div class="sub-section" style="margin-top:20px;"><div class="sub-title">매출/이익 분석</div>${nl2p(fin.revenueAnalysis)}</div>`;
+  if (fin.balanceSheet) finAnalysis += `<div class="sub-section"><div class="sub-title">자본/부채 분석</div>${nl2p(fin.balanceSheet)}</div>`;
+  document.getElementById('financialContent').innerHTML = finAnalysis;
+
+  // 4. Valuation
+  const val = rpt.valuation || {};
+  document.getElementById('valuationContent').innerHTML = `
+    <div class="val-grid">
+      <div class="val-box"><h4>밸류에이션 방법론</h4>${nl2p(val.method)}</div>
+      <div class="val-box"><h4>목표주가</h4>${nl2p(val.targetPrice)}</div>
+    </div>
+    ${val.scenarios ? `<div style="margin-top:16px;"><div class="sub-title">시나리오 분석</div>${nl2p(val.scenarios)}</div>` : ''}
+  `;
+
+  // 5. Risks
+  const risks = rpt.risks || [];
+  document.getElementById('riskContent').innerHTML = risks.map((r, i) =>
+    `<div class="risk-point"><h4>${i+1}) ${r.title}</h4>${nl2p(r.detail)}</div>`
+  ).join('') || '<p>데이터를 불러올 수 없습니다.</p>';
+
+  // 6. Summary
+  document.getElementById('summaryContent').innerHTML =
+    `<div class="summary-box">${nl2p(rpt.summary)}</div>`;
+
+  // IR Note
+  if (irNote) {
+    document.getElementById('secIR').style.display = 'block';
+    document.getElementById('irContent').innerHTML = nl2p(irNote);
+  } else {
+    document.getElementById('secIR').style.display = 'none';
+  }
+}
+
+// URL params auto-run
+const params = new URLSearchParams(location.search);
+if (params.get('code') && params.get('name')) {
+  selectedCode = params.get('code');
+  selectedName = params.get('name');
+  searchInput.value = `${selectedName} (${selectedCode})`;
+  analyzeBtn.disabled = false;
+}
+</script>
+</body>
+</html>

@@ -1528,6 +1528,131 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── 집중 종목 분석 레포트: /api/deep-report ──
+  if (parsedUrl.pathname === '/api/deep-report' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { stockCode, stockName, financialData, irNote } = JSON.parse(body);
+        if (!stockCode) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: '종목코드가 필요합니다.' }));
+          return;
+        }
+
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+        if (!OPENAI_API_KEY) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'OPENAI_API_KEY가 설정되지 않았습니다. Render 환경변수를 확인해주세요.' }));
+          return;
+        }
+
+        const prompt = `당신은 한국 증권 애널리스트입니다. 아래 종목의 재무 데이터를 기반으로 집중 기업분석 레포트를 작성해주세요.
+
+종목명: ${stockName}
+종목코드: ${stockCode}
+
+=== 재무 데이터 ===
+${financialData}
+
+${irNote ? `=== IR 통화 내용 (참고) ===\n${irNote}\n` : ''}
+
+아래 6개 섹션을 JSON 형식으로 작성해주세요. 각 섹션은 구체적이고 전문적이어야 합니다.
+실제 증권사 리포트처럼 구체적인 수치와 논리적 근거를 포함해주세요.
+
+응답 형식 (반드시 아래 JSON 구조를 지켜주세요):
+{
+  "business": {
+    "model": "비즈니스 모델 설명 (매출구성, 주요제품/서비스, 고객군, 경쟁우위 등 3~5문단)",
+    "ceo": "최대주주 및 CEO 정보 (경영진 역량, 지분구조 등 2~3문단)"
+  },
+  "investmentPoints": [
+    {
+      "title": "투자포인트 제목",
+      "detail": "상세 설명 (3~5문단, 구체적 수치와 논거 포함)"
+    }
+  ],
+  "financial": {
+    "revenueAnalysis": "매출/이익 분석 (성장률, 추이, 전망 등 3~4문단)",
+    "balanceSheet": "자본/부채 분석 (재무안정성, PBR 밴드 등 2~3문단)"
+  },
+  "valuation": {
+    "method": "밸류에이션 방법론 설명",
+    "targetPrice": "목표주가 산출 근거 및 제시 (PER/PBR/EV/EBITDA 등 활용)",
+    "scenarios": "Bull/Neutral/Bear 시나리오별 목표가"
+  },
+  "risks": [
+    {
+      "title": "리스크 제목",
+      "detail": "상세 설명 (2~3문단)"
+    }
+  ],
+  "summary": "핵심 투자의견 요약 (5~7줄, 결론 중심)"
+}
+
+중요: 반드시 유효한 JSON만 출력하세요. 다른 텍스트는 포함하지 마세요.`;
+
+        const openaiPayload = JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 4000,
+        });
+
+        const result = await new Promise((resolve, reject) => {
+          const options = {
+            hostname: 'api.openai.com',
+            path: '/v1/chat/completions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Length': Buffer.byteLength(openaiPayload),
+            },
+          };
+          const apiReq = https.request(options, apiRes => {
+            let data = '';
+            apiRes.on('data', chunk => data += chunk);
+            apiRes.on('end', () => resolve({ statusCode: apiRes.statusCode, data }));
+          });
+          apiReq.on('error', reject);
+          apiReq.setTimeout(60000, () => { apiReq.destroy(); reject(new Error('OpenAI API Timeout')); });
+          apiReq.write(openaiPayload);
+          apiReq.end();
+        });
+
+        if (result.statusCode !== 200) {
+          res.writeHead(result.statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(result.data);
+          return;
+        }
+
+        const openaiRes = JSON.parse(result.data);
+        const content = openaiRes.choices?.[0]?.message?.content || '';
+
+        // JSON 파싱 시도
+        let report;
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          report = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+        } catch (e) {
+          report = { raw: content, parseError: true };
+        }
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ report, stockCode, stockName }));
+      } catch (e) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   // 정적 파일 서빙
   let filePath = parsedUrl.pathname === '/' ? '/stock-dashboard.html' : parsedUrl.pathname;
   filePath = path.join(__dirname, filePath);
