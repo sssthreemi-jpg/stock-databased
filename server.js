@@ -1623,8 +1623,13 @@ ${irNote ? `=== IR 통화 내용 (참고) ===\n${irNote}\n` : ''}
         });
 
         if (result.statusCode !== 200) {
-          res.writeHead(result.statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(result.data);
+          let errMsg = 'OpenAI API 오류';
+          try {
+            const errData = JSON.parse(result.data);
+            errMsg = errData.error?.message || JSON.stringify(errData.error) || errMsg;
+          } catch (_) { errMsg = result.data || errMsg; }
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: `OpenAI 오류 (${result.statusCode}): ${errMsg}` }));
           return;
         }
 
