@@ -1573,8 +1573,8 @@ const server = http.createServer(async (req, res) => {
       const [basicRes, integRes, dailyRes, weeklyRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
-        proxyRequest(`${mobileBase}/stock/${stockCode}/chart/day?count=150`),
-        proxyRequest(`${mobileBase}/stock/${stockCode}/chart/week?count=30`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/price?count=150`),
+        proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
       ]);
 
       let basic = null, integ = null;
