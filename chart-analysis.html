@@ -306,6 +306,181 @@ function renderReport(d){
 // URL params
 const params=new URLSearchParams(location.search);
 if(params.get('code')&&params.get('name')){selectedCode=params.get('code');selectedName=params.get('name');searchInput.value=`${selectedName} (${selectedCode})`;analyzeBtn.disabled=false}
+
+// ══════════════════════════════════════════════════════
+// BULK ANALYSIS
+// ══════════════════════════════════════════════════════
+let bulkResults = [];
+
+// Tab switching
+document.querySelectorAll('.bulk-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.bulk-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('bulkTextArea').style.display = tab.dataset.mode === 'text' ? 'block' : 'none';
+    document.getElementById('bulkFileArea').style.display = tab.dataset.mode === 'csv' ? 'block' : 'none';
+  });
+});
+
+// CSV file upload
+const dropZone = document.getElementById('dropZone');
+const csvFile = document.getElementById('csvFile');
+let csvStocks = [];
+
+dropZone.addEventListener('click', () => csvFile.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#0f4c81'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#cbd5e1'; });
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.style.borderColor = '#cbd5e1'; if (e.dataTransfer.files[0]) handleCSV(e.dataTransfer.files[0]); });
+csvFile.addEventListener('change', () => { if (csvFile.files[0]) handleCSV(csvFile.files[0]); });
+
+function handleCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    csvStocks = [];
+    for (const line of lines) {
+      const cols = line.split(/[,\t]/);
+      for (const col of cols) {
+        const v = col.trim().replace(/"/g, '');
+        if (v && v.length >= 2 && !v.match(/^(종목|코드|name|code|ticker)/i)) csvStocks.push(v);
+      }
+    }
+    document.getElementById('csvPreview').textContent = `${file.name} — ${csvStocks.length}개 종목 감지: ${csvStocks.slice(0, 5).join(', ')}${csvStocks.length > 5 ? '...' : ''}`;
+  };
+  reader.readAsText(file);
+}
+
+// Resolve stock name/code to code
+async function resolveCode(query) {
+  if (/^\d{6}$/.test(query)) return { code: query, name: query };
+  try {
+    const r = await fetch(`/api/naver?url=${encodeURIComponent(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(query)}&target=stock`)}`);
+    const d = await r.json();
+    const item = (d.items || []).find(i => i.category === 'stock');
+    if (item) return { code: item.code, name: item.name };
+  } catch (_) {}
+  return null;
+}
+
+// Bulk analyze
+document.getElementById('bulkAnalyzeBtn').addEventListener('click', async () => {
+  const activeTab = document.querySelector('.bulk-tab.active').dataset.mode;
+  let stocks = [];
+
+  if (activeTab === 'text') {
+    const text = document.getElementById('bulkTextInput').value.trim();
+    if (!text) { alert('종목을 입력해주세요.'); return; }
+    stocks = text.split(/[,\n]/).map(s => s.trim()).filter(s => s.length >= 2);
+  } else {
+    if (csvStocks.length === 0) { alert('CSV 파일을 업로드해주세요.'); return; }
+    stocks = [...csvStocks];
+  }
+
+  if (stocks.length === 0) return;
+  if (stocks.length > 50) { alert('최대 50종목까지 분석 가능합니다.'); stocks = stocks.slice(0, 50); }
+
+  const btn = document.getElementById('bulkAnalyzeBtn');
+  const progress = document.getElementById('bulkProgress');
+  const statusText = document.getElementById('bulkStatusText');
+  const bar = document.getElementById('bulkBar');
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+  document.getElementById('bulkResult').classList.remove('active');
+  bulkResults = [];
+
+  for (let i = 0; i < stocks.length; i++) {
+    const pct = Math.round((i / stocks.length) * 100);
+    statusText.textContent = `분석 중... ${i+1}/${stocks.length} (${stocks[i]})`;
+    bar.style.width = pct + '%';
+
+    try {
+      // Resolve code
+      const resolved = await resolveCode(stocks[i]);
+      if (!resolved) { bulkResults.push({ name: stocks[i], error: '종목 없음' }); continue; }
+
+      const r = await fetch(`/api/chart-analysis?code=${resolved.code}`);
+      if (!r.ok) { bulkResults.push({ name: resolved.name, code: resolved.code, error: '분석 실패' }); continue; }
+
+      const d = await r.json();
+      if (d.error) { bulkResults.push({ name: resolved.name, code: resolved.code, error: d.error }); continue; }
+
+      bulkResults.push({
+        name: d.name, code: d.code, price: d.price,
+        aggressiveBuy: d.trading.prices.aggressiveBuy,
+        conservativeBuy: d.trading.prices.conservativeBuy,
+        stopLoss: d.trading.prices.stopLoss,
+        target1: d.trading.prices.target1,
+        target2: d.trading.prices.target2,
+        rr: d.trading.returns.riskReward,
+        grade: d.trading.grade,
+      });
+    } catch (e) {
+      bulkResults.push({ name: stocks[i], error: e.message });
+    }
+  }
+
+  bar.style.width = '100%';
+  statusText.textContent = `완료! ${bulkResults.length}개 종목 분석`;
+
+  renderBulkTable();
+  btn.disabled = false;
+  setTimeout(() => { progress.style.display = 'none'; }, 2000);
+});
+
+function gradeColor(g) {
+  if (g === '강한 매수 후보') return '#dc2626';
+  if (g === '조건부 매수 후보') return '#f59e0b';
+  if (g === '눌림 대기') return '#3b82f6';
+  if (g === '보유 관찰') return '#6b7280';
+  return '#1e293b';
+}
+
+function renderBulkTable() {
+  const tbody = document.getElementById('bulkTableBody');
+  const valid = bulkResults.filter(r => !r.error);
+  const errors = bulkResults.filter(r => r.error);
+
+  document.getElementById('bulkSummaryText').textContent =
+    `총 ${bulkResults.length}종목 | 매수후보 ${valid.filter(r=>r.grade.includes('매수')).length} | 눌림대기 ${valid.filter(r=>r.grade==='눌림 대기').length} | 진입금지 ${valid.filter(r=>r.grade==='진입 금지').length}${errors.length ? ` | 오류 ${errors.length}` : ''}`;
+
+  tbody.innerHTML = valid.sort((a, b) => b.rr - a.rr).map(r => `
+    <tr style="cursor:pointer" onclick="window.open('/chart-analysis.html?code=${r.code}&name=${encodeURIComponent(r.name)}','_blank')">
+      <td>${r.name}<br><span style="font-size:10px;color:#94a3b8;font-weight:400">${r.code}</span></td>
+      <td style="font-weight:700">${fmt(r.price)}</td>
+      <td style="color:#dc2626;font-weight:700">${fmt(r.aggressiveBuy)}</td>
+      <td style="color:#dc2626">${fmt(r.conservativeBuy)}</td>
+      <td style="color:#64748b">${fmt(r.stopLoss)}</td>
+      <td style="color:#059669">${fmt(r.target1)}</td>
+      <td style="color:#059669">${fmt(r.target2)}</td>
+      <td style="font-weight:700;color:${r.rr>=1.5?'#059669':'#dc2626'}">${r.rr}배</td>
+      <td><span class="grade-chip" style="background:${gradeColor(r.grade)}">${r.grade}</span></td>
+    </tr>
+  `).join('') + errors.map(r => `
+    <tr style="opacity:.5"><td>${r.name}</td><td colspan="8" style="text-align:left;color:#dc2626;font-size:11px">${r.error}</td></tr>
+  `).join('');
+
+  document.getElementById('bulkResult').classList.add('active');
+  document.getElementById('bulkResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// CSV export
+function exportCSV() {
+  const valid = bulkResults.filter(r => !r.error);
+  if (valid.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+  const header = '종목명,종목코드,현재가,공격적매수가,보수적매수가,손절가,1차목표가,2차목표가,손익비,최종의견\n';
+  const rows = valid.map(r =>
+    `${r.name},${r.code},${r.price},${r.aggressiveBuy},${r.conservativeBuy},${r.stopLoss},${r.target1},${r.target2},${r.rr},${r.grade}`
+  ).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + header + rows], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `차트매매분석_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 </body>
 </html>
