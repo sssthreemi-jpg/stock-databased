@@ -1590,54 +1590,36 @@ const server = http.createServer(async (req, res) => {
       const high52 = pn(infos.highPriceOf52Weeks), low52 = pn(infos.lowPriceOf52Weeks);
       const marketCap = infos.marketValue || '';
 
-      // 일봉 OHLCV 파싱
+      // 일봉 OHLCV 파싱 (fchart XML: <item data="YYYYMMDD|시가|고가|저가|종가|거래량" />)
       let candles = [];
       try {
         if (dailyRes.status === 'fulfilled') {
-          let rawText = dailyRes.value.data;
-          // HTML 응답인 경우 스킵
-          if (rawText && !rawText.trim().startsWith('<')) {
-            const raw = JSON.parse(rawText);
-            if (Array.isArray(raw)) {
-              candles = raw.map(c => ({
-                date: c.localTradedAt,
-                open: pn(c.openPrice), high: pn(c.highPrice),
-                low: pn(c.lowPrice), close: pn(c.closePrice),
-                volume: pn(c.accumulatedTradingVolume),
-              })).filter(c => c.close > 0).reverse(); // 최신→과거를 과거→최신으로
+          const xml = dailyRes.value.data;
+          const itemPattern = /data="([^"]+)"/g;
+          let match;
+          while ((match = itemPattern.exec(xml)) !== null) {
+            const parts = match[1].split('|');
+            if (parts.length >= 6) {
+              const [dateStr, open, high, low, close, vol] = parts;
+              candles.push({
+                date: `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`,
+                open: +open, high: +high, low: +low, close: +close, volume: +vol,
+              });
             }
           }
+          candles = candles.filter(c => c.close > 0);
         }
       } catch (_) {}
 
-      // price API 실패 시 yearChart로 폴백
-      if (candles.length < 30) {
-        try {
-          const ycRes = await proxyRequest(`${mobileBase}/stock/${stockCode}/yearChart`);
-          const ycData = JSON.parse(ycRes.data);
-          const priceInfos = ycData?.priceInfos || [];
-          if (priceInfos.length >= 30) {
-            candles = priceInfos.map(c => ({
-              date: c.localDate,
-              open: pn(c.openPrice), high: pn(c.highPrice),
-              low: pn(c.lowPrice), close: pn(c.closePrice),
-              volume: pn(c.accumulatedTradingVolume),
-            })).filter(c => c.close > 0);
-          }
-        } catch (_) {}
-      }
-
-      // yearChart도 실패 시 dealTrendInfos로 폴백
+      // fchart 실패 시 dealTrendInfos로 폴백
       if (candles.length < 30) {
         try {
           const deals = integ?.dealTrendInfos || [];
           if (deals.length >= 30) {
             candles = deals.map(d => ({
               date: d.date,
-              open: pn(d.openPrice) || pn(d.closePrice),
-              high: pn(d.highPrice) || pn(d.closePrice),
-              low: pn(d.lowPrice) || pn(d.closePrice),
-              close: pn(d.closePrice),
+              open: pn(d.closePrice), high: pn(d.closePrice),
+              low: pn(d.closePrice), close: pn(d.closePrice),
               volume: pn(d.accumulatedTradingVolume),
             })).filter(c => c.close > 0).reverse();
           }
