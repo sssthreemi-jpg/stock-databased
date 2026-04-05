@@ -1569,12 +1569,11 @@ const server = http.createServer(async (req, res) => {
       }
       if (!stockCode) throw new Error('종목코드를 찾을 수 없습니다');
 
-      // 병렬로 기본정보 + 일봉차트 + 주봉차트 + integration 요청
-      const [basicRes, integRes, dailyRes, weeklyRes] = await Promise.allSettled([
+      // 병렬로 기본정보 + integration + 일봉차트 요청
+      const [basicRes, integRes, dailyRes] = await Promise.allSettled([
         proxyRequest(`${mobileBase}/stock/${stockCode}/basic`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
         proxyRequest(`${mobileBase}/stock/${stockCode}/price?count=150`),
-        proxyRequest(`${mobileBase}/stock/${stockCode}/integration`),
       ]);
 
       let basic = null, integ = null;
