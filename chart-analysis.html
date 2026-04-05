@@ -338,14 +338,26 @@ function handleCSV(file) {
   reader.onload = e => {
     const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
     csvStocks = [];
+    const seen = new Set();
     for (const line of lines) {
+      // 첫번째 컬럼만 종목코드로 사용
       const cols = line.split(/[,\t]/);
-      for (const col of cols) {
-        const v = col.trim().replace(/"/g, '');
-        if (v && v.length >= 2 && !v.match(/^(종목|코드|name|code|ticker)/i)) csvStocks.push(v);
+      const v = (cols[0] || '').trim().replace(/"/g, '');
+      if (!v || v.length < 4) continue;
+      // 헤더행 스킵
+      if (v.match(/^(종목|코드|name|code|ticker|번호)/i)) continue;
+      // 순수 6자리 숫자 종목코드만 허용 (우선주 K/Z/Y 코드, 영문 ETF코드 제외)
+      if (/^\d{6}$/.test(v)) {
+        // 우선주 제외 (끝자리 0이 아닌 것)
+        if (!v.endsWith('0')) continue;
+        if (!seen.has(v)) { seen.add(v); csvStocks.push(v); }
+      } else if (/^[가-힣]/.test(v)) {
+        // 한글 종목명
+        if (!seen.has(v)) { seen.add(v); csvStocks.push(v); }
       }
+      // 영문코드(NHKRCM 등), 특수코드(0009K0 등) 자동 제외
     }
-    document.getElementById('csvPreview').textContent = `${file.name} — ${csvStocks.length}개 종목 감지: ${csvStocks.slice(0, 5).join(', ')}${csvStocks.length > 5 ? '...' : ''}`;
+    document.getElementById('csvPreview').textContent = `${file.name} — ${csvStocks.length}개 종목 감지: ${csvStocks.slice(0, 8).join(', ')}${csvStocks.length > 8 ? '...' : ''}`;
   };
   reader.readAsText(file);
 }
