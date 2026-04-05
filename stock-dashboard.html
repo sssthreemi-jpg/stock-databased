@@ -353,35 +353,17 @@
     <!-- 관심종목 -->
     <div class="sidebar-section-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:12px;">
       <span>관심종목</span>
-      <div style="display:flex;gap:4px;">
-        <button id="syncNaverBtn" class="watchlist-add-btn" title="네이버 관심종목 연동" style="font-size:11px;">&#x21BB;</button>
-        <button id="addWatchlistBtn" class="watchlist-add-btn" title="종목 수동 추가" style="font-size:14px;line-height:1;">+</button>
-      </div>
+      <button id="addWatchlistBtn" class="watchlist-add-btn" title="종목 추가" style="font-size:14px;line-height:1;">+</button>
     </div>
 
     <div id="watchlistInputArea" style="display:none;padding:0 12px 8px;">
       <div style="display:flex;gap:4px;">
-        <input type="text" id="watchlistInput" placeholder="종목명/코드 수동추가" spellcheck="false"
+        <input type="text" id="watchlistInput" placeholder="종목명 또는 코드 입력" spellcheck="false"
           style="flex:1;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none;">
         <button id="watchlistSearchBtn"
           style="padding:5px 10px;border:none;border-radius:6px;background:#0f4c81;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">추가</button>
       </div>
       <div id="watchlistSuggestions" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
-    </div>
-
-    <div id="naverCookieArea" style="display:none;padding:0 12px 8px;">
-      <div style="font-size:10px;color:#64748b;margin-bottom:4px;line-height:1.4;">
-        F12 → Network 탭 → 아무 요청 클릭 →<br>Request Headers의 <b>Cookie:</b> 값 전체 복사
-      </div>
-      <textarea id="naverCookieInput" placeholder="Cookie 헤더 값을 붙여넣기&#10;(NID_AUT=...; NID_SES=... 포함)"
-        style="width:100%;height:50px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;outline:none;resize:none;font-family:monospace;box-sizing:border-box;"></textarea>
-      <div style="display:flex;gap:4px;margin-top:4px;">
-        <button id="saveCookieBtn"
-          style="flex:1;padding:5px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">저장 & 연동</button>
-        <button id="clearCookieBtn"
-          style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;color:#64748b;font-size:11px;cursor:pointer;">초기화</button>
-      </div>
-      <div id="cookieStatus" style="font-size:10px;color:#94a3b8;margin-top:4px;"></div>
     </div>
 
     <li class="sector-item" data-sector="관심종목" id="watchlistSectorBtn"
