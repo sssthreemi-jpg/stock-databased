@@ -219,7 +219,9 @@ const server = http.createServer(async (req, res) => {
           (data.stocks || []).forEach(s => {
             if (s.itemCode && s.itemCode.endsWith('0') && !stockMap[s.itemCode]) {
               const mv = parseFloat(String(s.marketValue || '0').replace(/,/g, '')) || 0;
-              stockMap[s.itemCode] = mv;
+              const exchange = (s.stockExchangeType?.name || s.reutersCode || '').toUpperCase();
+              const market = exchange.includes('KOSDAQ') ? 'KOSDAQ' : 'KOSPI';
+              stockMap[s.itemCode] = { mv, market };
             }
           });
         };
@@ -250,12 +252,11 @@ const server = http.createServer(async (req, res) => {
             try { addStocks(JSON.parse(r.value.data)); } catch (_) {}
           }
         }
-        // 시총순 정렬 후 상위 30개
-        const sorted = Object.entries(stockMap)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 30)
-          .map(([code]) => code);
-        result[sector] = sorted;
+        // KOSPI/KOSDAQ 각각 시총순 상위 20개씩
+        const entries = Object.entries(stockMap);
+        const kospi = entries.filter(([,v]) => v.market === 'KOSPI').sort((a,b) => b[1].mv - a[1].mv).slice(0, 20).map(([code]) => code);
+        const kosdaq = entries.filter(([,v]) => v.market === 'KOSDAQ').sort((a,b) => b[1].mv - a[1].mv).slice(0, 20).map(([code]) => code);
+        result[sector] = [...new Set([...kospi, ...kosdaq])].slice(0, 40);
         await delay(300); // 섹터 간 딜레이로 과부하 방지
       }
 
