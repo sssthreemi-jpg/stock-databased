@@ -743,7 +743,12 @@ function parseStockData(basic, integration, chartData, targetInfo, quarterData, 
     prevRevenue: 0,         // 직전 분기 매출액
     prevOperatingProfit: 0, // 직전 분기 영업이익
     prevRevenuePeriod: '',  // 직전 분기 기간
+    market: '',             // KOSPI 또는 KOSDAQ
   };
+
+  // 시장 구분
+  const exchangeName = basic?.stockExchangeType?.name || '';
+  stock.market = exchangeName.toUpperCase().includes('KOSDAQ') ? 'KOSDAQ' : 'KOSPI';
 
   // 상승/하락 부호 처리
   const priceDirection = basic?.compareToPreviousPrice?.name;
