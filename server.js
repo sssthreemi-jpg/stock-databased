@@ -20,7 +20,9 @@ const MIME_TYPES = {
   '.css':  'text/css',
   '.json': 'application/json',
   '.png':  'image/png',
+  '.svg':  'image/svg+xml',
   '.ico':  'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
 };
 
 // AI 리포트 캐시 (1시간 TTL)
