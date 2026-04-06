@@ -158,7 +158,7 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
 .rec-stop-btn{padding:5px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;font-weight:600;color:#64748b;cursor:pointer;margin-left:auto}
 .rec-stop-btn:hover{border-color:#ef4444;color:#ef4444}
 
-@media print{.page-header,.search-card,.bulk-card,.btn-print,.back-btn{display:none!important}.report,.bulk-result{display:block!important}.card{break-inside:avoid;box-shadow:none;border:1px solid #e2e8f0}}
+@media print{.page-header,.search-card,.bulk-card,.rec-card,.btn-print,.back-btn{display:none!important}.report,.bulk-result{display:block!important}.card{break-inside:avoid;box-shadow:none;border:1px solid #e2e8f0}}
 @media(max-width:640px){.container{padding:16px 12px 48px}.card{padding:20px 16px}.search-row{flex-direction:column}.price-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -685,6 +685,160 @@ function exportCSV() {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// ═════════════════════════════════���════════════════════
+// RECOMMENDATION BY GRADE
+// ════════════════════════════���═════════════════════════
+let recAbort = false;
+let recSelectedGrade = '조건부 매수 후보';
+let recSelectedSectors = ['all'];
+
+// 등급 버튼 토글
+document.querySelectorAll('.rec-grade-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.rec-grade-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    recSelectedGrade = btn.dataset.grade;
+  });
+});
+
+// 섹터 버튼 토글 (복수 선택)
+document.querySelectorAll('.rec-sector-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sector = btn.dataset.sector;
+    if (sector === 'all') {
+      document.querySelectorAll('.rec-sector-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      recSelectedSectors = ['all'];
+    } else {
+      document.querySelector('.rec-sector-btn.all').classList.remove('active');
+      btn.classList.toggle('active');
+      recSelectedSectors = [...document.querySelectorAll('.rec-sector-btn.active:not(.all)')].map(b => b.dataset.sector);
+      if (recSelectedSectors.length === 0) {
+        document.querySelector('.rec-sector-btn.all').classList.add('active');
+        recSelectedSectors = ['all'];
+      }
+    }
+  });
+});
+
+// 중단 버튼
+document.getElementById('recStopBtn').addEventListener('click', () => { recAbort = true; });
+
+// 등급별 색상/순위색
+function gradeRankColor(grade) {
+  if (grade === '강한 매수 후보') return '#dc2626';
+  if (grade === '조건부 매수 후보') return '#f59e0b';
+  if (grade === '눌림 대기') return '#3b82f6';
+  return '#6b7280';
+}
+
+// 등급 우선순위 (매칭 등급 + 상위 등급도 표시)
+const GRADE_PRIORITY = ['강한 매수 후보', '조건부 매수 후보', '눌림 대기', '보유 관찰', '진입 금지'];
+function gradeMatches(stockGrade, targetGrade) {
+  return GRADE_PRIORITY.indexOf(stockGrade) <= GRADE_PRIORITY.indexOf(targetGrade) && stockGrade !== '진입 금지';
+}
+
+// 추천 시작
+document.getElementById('recStartBtn').addEventListener('click', async () => {
+  recAbort = false;
+  const allSectors = ['반도체','2차전지','바이오','자동차','에너지','조선','통신장비','우주항공'];
+  const sectors = recSelectedSectors.includes('all') ? allSectors : recSelectedSectors;
+
+  const startBtn = document.getElementById('recStartBtn');
+  const status = document.getElementById('recStatus');
+  const statusText = document.getElementById('recStatusText');
+  const feed = document.getElementById('recFeed');
+  const summary = document.getElementById('recSummary');
+
+  startBtn.disabled = true;
+  status.style.display = 'flex';
+  feed.style.display = 'block';
+  feed.innerHTML = '';
+  summary.style.display = 'none';
+
+  // 1단계: 섹터별 종목 풀 수집
+  statusText.textContent = '섹터별 종목 목록 수집 중...';
+  let stockCodes = [];
+  try {
+    const r = await fetch(`/api/industry?sectors=${encodeURIComponent(sectors.join(','))}`);
+    const data = await r.json();
+    const seen = new Set();
+    for (const sector of sectors) {
+      (data[sector] || []).forEach(code => {
+        if (!seen.has(code)) { seen.add(code); stockCodes.push(code); }
+      });
+    }
+  } catch (e) {
+    statusText.textContent = '종목 목록 수집 실패: ' + e.message;
+    startBtn.disabled = false;
+    return;
+  }
+
+  if (stockCodes.length === 0) {
+    statusText.textContent = '해당 섹터에 ��목이 없습��다.';
+    startBtn.disabled = false;
+    return;
+  }
+
+  // 2단계: 순차 분석 + 실시간 피드
+  let analyzed = 0, matched = 0, errors = 0;
+  const matchedList = [];
+
+  for (let i = 0; i < stockCodes.length; i++) {
+    if (recAbort) break;
+
+    const code = stockCodes[i];
+    analyzed++;
+    statusText.textContent = `분��� 중... ${analyzed}/${stockCodes.length} (${code}) | 발견: ${matched}개`;
+
+    try {
+      const r = await fetch(`/api/chart-analysis?code=${code}`);
+      if (!r.ok) { errors++; continue; }
+      const d = await r.json();
+      if (d.error) { errors++; continue; }
+
+      const stockGrade = d.trading.grade;
+      if (gradeMatches(stockGrade, recSelectedGrade)) {
+        matched++;
+        const item = {
+          name: d.name, code: d.code, price: d.price,
+          grade: stockGrade, rr: d.trading.returns.riskReward,
+          ret1: d.trading.returns.expectedReturn1,
+          aggressiveBuy: d.trading.prices.aggressiveBuy,
+          target1: d.trading.prices.target1,
+          sector: d.sector || '',
+        };
+        matchedList.push(item);
+
+        // 실시간으로 피드에 추가
+        const el = document.createElement('div');
+        el.className = 'rec-live-item';
+        el.onclick = () => window.open(`/chart-analysis.html?code=${item.code}&name=${encodeURIComponent(item.name)}`, '_blank');
+        el.innerHTML = `
+          <div class="rl-rank" style="background:${gradeRankColor(item.grade)}">${matched}</div>
+          <div class="rl-info">
+            <div><span class="rl-name">${item.name}</span><span class="rl-code">${item.code}</span>
+              <span class="grade-chip" style="background:${gradeColor(item.grade)};font-size:10px;padding:2px 8px;margin-left:6px">${item.grade}</span></div>
+            <div class="rl-detail">현재가 ${fmt(item.price)}원 | 매수가 ${fmt(item.aggressiveBuy)} | 목표가 ${fmt(item.target1)} | 기대수익 ${item.ret1>0?'+':''}${item.ret1}%</div>
+          </div>
+          <div class="rl-rr" style="color:${item.rr>=1.5?'#059669':'#f59e0b'}">${item.rr}배</div>
+        `;
+        feed.prepend(el);
+      }
+    } catch (_) { errors++; }
+  }
+
+  // 완료
+  const abortText = recAbort ? ' (중단됨)' : '';
+  statusText.textContent = `완료${abortText} — ${analyzed}개 분석, ${matched}개 발견`;
+  document.querySelector('.rec-spinner')?.remove();
+  status.querySelector('.rec-spinner')?.remove();
+  summary.style.display = 'block';
+  summary.textContent = `"${recSelectedGrade}" 이상 등급 종목 ${matched}개 / 전체 ${analyzed}개 분석${errors ? ` (오류 ${errors}건)` : ''}`;
+  startBtn.disabled = false;
+  recAbort = false;
+});
 </script>
 </body>
 </html>
