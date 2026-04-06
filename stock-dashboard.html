@@ -1417,7 +1417,7 @@ function renderTable(stocks) {
     const ppLabel = s.prevRevenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.prevRevenuePeriod}</span>` : '';
 
     return `<tr>
-      <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span>${s.sector ? `<span class="sector-badge">${s.sector}</span>` : ''}${(() => { const theme = THEME_MAP[s.code] || SECTOR_THEME_MAP[s.sector] || ''; return theme ? `<span class="theme-badge">${theme}</span>` : ''; })()}</td>
+      <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span><span style="font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;color:${s.market==='KOSDAQ'?'#2563eb':'#dc2626'};background:${s.market==='KOSDAQ'?'#eff6ff':'#fef2f2'}">${s.market}</span>${s.sector ? `<span class="sector-badge">${s.sector}</span>` : ''}${(() => { const theme = THEME_MAP[s.code] || SECTOR_THEME_MAP[s.sector] || ''; return theme ? `<span class="theme-badge">${theme}</span>` : ''; })()}</td>
       <td class="price">${s.price.toLocaleString()}</td>
       <td class="${chgClass}">${chgSign}${s.change.toLocaleString()} (${chgSign}${s.changePercent}%)</td>
       <td>${mcapStr}</td>
