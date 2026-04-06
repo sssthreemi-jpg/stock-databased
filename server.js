@@ -1805,35 +1805,37 @@ const server = http.createServer(async (req, res) => {
       const excludeSignals = [];
 
       // 매수 시그널
-      if (price > ma20 && price < ma20 * 1.03 && ma20Slope > 0)
+      if (price > ma20 && price < ma20 * 1.05 && ma20Slope > -0.1)
         buySignals.push('20일선 지지 후 반등');
-      if (price > high20 * 0.98 && volRatio > 1.5)
+      if (price > high20 * 0.96 && volRatio > 1.2)
         buySignals.push('박스권 상단 돌파 + 거래량 증가');
-      if (price > prevHigh * 0.97 && volRatio > 1.5)
+      if (price > prevHigh * 0.95 && volRatio > 1.2)
         buySignals.push('전고점 돌파 시도 + 거래량 동반');
-      if (isJungBae && ma20Slope > 0.3)
+      if (isJungBae && ma20Slope > 0)
         buySignals.push('정배열 초기 전환');
       if (macdGoldenCross)
         buySignals.push('MACD 골든크로스');
-      if (rsi >= 40 && rsi <= 65 && closes[n-1] > closes[n-2])
+      if (rsi >= 35 && rsi <= 70 && closes[n-1] > closes[n-2])
         buySignals.push('RSI 건강한 상승 구간 ('+rsi+')');
-      if (isBigBullish && price >= ma20 * 0.97)
+      if (isBigBullish && price >= ma20 * 0.95)
         buySignals.push('눌림목 장대양봉 출현');
       if (price > bbMiddle && closes[n-2] < bbMiddle)
         buySignals.push('볼린저밴드 중심선 재돌파');
+      if (price > ma5 && ma5 > ma20 && closes[n-1] > closes[n-2])
+        buySignals.push('단기 이평선 정배열 상승');
+      if (price >= ma60 * 0.97 && price <= ma60 * 1.03 && ma60Slope > -0.1)
+        buySignals.push('60일선 지지 구간');
 
       // 매수 제외 조건
-      if (price > high20 && volRatio < 1.0)
+      if (price > high20 && volRatio < 0.8)
         excludeSignals.push('거래량 없이 돌파');
-      if (price > prevHigh * 0.95 && price < prevHigh && resistances.length > 0)
-        excludeSignals.push('전고점 바로 아래 저항 강함');
-      if (rsi > 75)
+      if (rsi > 80)
         excludeSignals.push('RSI 과열 (' + rsi + ')');
-      if (isBigBearish && closes[n-1] < closes[n-2])
+      if (isBigBearish && closes[n-1] < closes[n-2] && closes[n-1] < ma20)
         excludeSignals.push('장대음봉 후 회복 실패');
-      if (ma20Slope < -0.3 && ma60Slope < -0.3)
+      if (ma20Slope < -0.5 && ma60Slope < -0.5)
         excludeSignals.push('20일선·60일선 모두 하향');
-      if (price > ma20 * 1.15)
+      if (price > ma20 * 1.20)
         excludeSignals.push('이격 과다 (MA20 대비 +' + ((price/ma20-1)*100).toFixed(1) + '%)');
 
       // ── 매매가 산출 (3가지 기법 기반) ──
@@ -1943,10 +1945,10 @@ const server = http.createServer(async (req, res) => {
       const buyScore = buySignals.length;
       const excludeScore = excludeSignals.length;
 
-      if (buyScore >= 3 && excludeScore === 0 && riskReward >= 1.5) grade = '강한 매수 후보';
-      else if (buyScore >= 2 && excludeScore <= 1 && riskReward >= 1.0) grade = '조건부 매수 후보';
-      else if (buyScore >= 1 && trend !== '하락추세' && riskReward >= 0.8) grade = '눌림 대기';
-      else if (excludeScore <= 2 && riskReward >= 0.5) grade = '보유 관찰';
+      if (buyScore >= 3 && excludeScore === 0 && riskReward >= 1.2) grade = '강한 매수 후보';
+      else if (buyScore >= 2 && excludeScore <= 1 && riskReward >= 0.8) grade = '조건부 매수 후보';
+      else if (buyScore >= 1 && trend !== '하락추세') grade = '눌림 대기';
+      else if (excludeScore <= 2) grade = '보유 관찰';
       else grade = '진입 금지';
 
       // 경고
