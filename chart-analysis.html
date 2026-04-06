@@ -128,6 +128,36 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
 .ma-legend-item.off{opacity:.35;text-decoration:line-through}
 .ma-legend-item .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 
+/* Recommend */
+.rec-card{background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:24px}
+.rec-card h2{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.rec-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.rec-grade-btn{padding:8px 16px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.rec-grade-btn:hover{border-color:#94a3b8}
+.rec-grade-btn.active{color:#fff;border-color:transparent}
+.rec-grade-btn[data-grade="강한 매수 후보"].active{background:linear-gradient(135deg,#dc2626,#ef4444)}
+.rec-grade-btn[data-grade="조건부 매수 후보"].active{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1e293b}
+.rec-grade-btn[data-grade="눌림 대기"].active{background:linear-gradient(135deg,#3b82f6,#60a5fa)}
+.rec-grade-btn[data-grade="보유 관찰"].active{background:linear-gradient(135deg,#6b7280,#9ca3af)}
+.rec-sector-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.rec-sector-btn{padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:11px;font-weight:600;color:#64748b;cursor:pointer}
+.rec-sector-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
+.rec-sector-btn.all{background:#334155;color:#fff;border-color:#334155}
+.rec-live-feed{margin-top:14px;max-height:420px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px}
+.rec-live-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;cursor:pointer;transition:background .1s}
+.rec-live-item:hover{background:#f8fafc}
+.rec-live-item:last-child{border-bottom:none}
+.rec-live-item .rl-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;margin-right:12px}
+.rec-live-item .rl-info{flex:1;min-width:0}
+.rec-live-item .rl-name{font-weight:700;color:#0f172a}
+.rec-live-item .rl-code{font-size:11px;color:#94a3b8;margin-left:6px}
+.rec-live-item .rl-detail{font-size:11px;color:#64748b;margin-top:2px}
+.rec-live-item .rl-rr{font-weight:800;font-size:14px;margin-left:12px;flex-shrink:0}
+.rec-status{font-size:12px;color:#64748b;margin-top:8px;display:flex;align-items:center;gap:8px}
+.rec-status .rec-spinner{width:14px;height:14px;border:2px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+.rec-stop-btn{padding:5px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;font-weight:600;color:#64748b;cursor:pointer;margin-left:auto}
+.rec-stop-btn:hover{border-color:#ef4444;color:#ef4444}
+
 @media print{.page-header,.search-card,.bulk-card,.btn-print,.back-btn{display:none!important}.report,.bulk-result{display:block!important}.card{break-inside:avoid;box-shadow:none;border:1px solid #e2e8f0}}
 @media(max-width:640px){.container{padding:16px 12px 48px}.card{padding:20px 16px}.search-row{flex-direction:column}.price-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
