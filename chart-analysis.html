@@ -225,6 +225,39 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
     </div>
   </div>
 
+  <!-- 종목 추천 -->
+  <div class="rec-card">
+    <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 등급별 종목 추천</h2>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">원하는 등급을 선택하고 섹터를 고르면 해당 조건의 종목을 실시간으로 찾아줍니다.</div>
+    <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;">의견 유형 선택</div>
+    <div class="rec-filters" id="recGradeFilters">
+      <button class="rec-grade-btn" data-grade="강한 매수 후보">강한 매수 후보</button>
+      <button class="rec-grade-btn active" data-grade="조건부 매수 후보">조건부 매수 후보</button>
+      <button class="rec-grade-btn" data-grade="눌림 대기">눌림 대기</button>
+      <button class="rec-grade-btn" data-grade="보유 관찰">보유 관찰</button>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;">분석 대상 섹터</div>
+    <div class="rec-sector-wrap" id="recSectorWrap">
+      <button class="rec-sector-btn all active" data-sector="all">전체</button>
+      <button class="rec-sector-btn" data-sector="반도체">반도체</button>
+      <button class="rec-sector-btn" data-sector="2차전지">2차전지</button>
+      <button class="rec-sector-btn" data-sector="바이오">바이오</button>
+      <button class="rec-sector-btn" data-sector="자동차">자동차</button>
+      <button class="rec-sector-btn" data-sector="에너지">에너지</button>
+      <button class="rec-sector-btn" data-sector="조선">조선</button>
+      <button class="rec-sector-btn" data-sector="통신장비">통신장비</button>
+      <button class="rec-sector-btn" data-sector="우주항공">우주항공</button>
+    </div>
+    <button class="btn-bulk" id="recStartBtn">추천 종목 검색 시작</button>
+    <div class="rec-status" id="recStatus" style="display:none">
+      <div class="rec-spinner"></div>
+      <span id="recStatusText">분석 중...</span>
+      <button class="rec-stop-btn" id="recStopBtn">중단</button>
+    </div>
+    <div class="rec-live-feed" id="recFeed" style="display:none"></div>
+    <div id="recSummary" style="font-size:12px;color:#64748b;margin-top:8px;display:none"></div>
+  </div>
+
   <div class="loading" id="loading"><div class="spinner"></div><div style="font-size:15px;color:#475569;font-weight:600">차트 데이터 수집 및 기술지표 분석 중...</div></div>
   <div class="report" id="report"></div>
 </div>
