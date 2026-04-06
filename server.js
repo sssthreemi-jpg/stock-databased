@@ -1940,10 +1940,10 @@ const server = http.createServer(async (req, res) => {
       const buyScore = buySignals.length;
       const excludeScore = excludeSignals.length;
 
-      if (buyScore >= 4 && excludeScore === 0 && riskReward >= 2.0) grade = '강한 매수 후보';
-      else if (buyScore >= 3 && excludeScore <= 1 && riskReward >= 1.5) grade = '조건부 매수 후보';
-      else if (buyScore >= 2 && trend !== '하락추세' && riskReward >= 1.2) grade = '눌림 대기';
-      else if (trend === '상승추세' && excludeScore <= 1) grade = '보유 관찰';
+      if (buyScore >= 3 && excludeScore === 0 && riskReward >= 1.5) grade = '강한 매수 후보';
+      else if (buyScore >= 2 && excludeScore <= 1 && riskReward >= 1.0) grade = '조건부 매수 후보';
+      else if (buyScore >= 1 && trend !== '하락추세' && riskReward >= 0.8) grade = '눌림 대기';
+      else if (excludeScore <= 2 && riskReward >= 0.5) grade = '보유 관찰';
       else grade = '진입 금지';
 
       // 경고
