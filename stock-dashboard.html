@@ -1235,25 +1235,27 @@ function renderSidebar() {
   const allStocks = getAllStocks();
   const allKospi = allStocks.filter(s => s.market === 'KOSPI').length;
   const allKosdaq = allStocks.filter(s => s.market === 'KOSDAQ').length;
+
   let html = `<li class="sector-item ${currentSector==='전체' && !currentMarketFilter?'active':''}" data-sector="전체" data-market="">
     <span>전체</span><span class="sector-count">${allStocks.length}</span></li>`;
-  for (const [name, codes] of Object.entries(SECTOR_CONFIG)) {
-    const loaded = codes.filter(c => stockDataMap[c]);
-    const total = loaded.length;
-    const kospiCnt = loaded.filter(c => stockDataMap[c]?.market === 'KOSPI').length;
-    const kosdaqCnt = loaded.filter(c => stockDataMap[c]?.market === 'KOSDAQ').length;
-    const isActive = currentSector === name && !currentMarketFilter;
-    const isKospiActive = currentSector === name && currentMarketFilter === 'KOSPI';
-    const isKosdaqActive = currentSector === name && currentMarketFilter === 'KOSDAQ';
-    html += `<li class="sector-item ${isActive?'active':''}" data-sector="${name}" data-market="">
-      <span>${name}</span><span class="sector-count">${total}</span></li>`;
-    if (total > 0) {
-      html += `<li class="sector-item sector-sub ${isKospiActive?'active':''}" data-sector="${name}" data-market="KOSPI" style="padding-left:28px;font-size:11px;">
-        <span style="color:#dc2626;font-weight:600;">KOSPI</span><span class="sector-count">${kospiCnt}</span></li>`;
-      html += `<li class="sector-item sector-sub ${isKosdaqActive?'active':''}" data-sector="${name}" data-market="KOSDAQ" style="padding-left:28px;font-size:11px;">
-        <span style="color:#2563eb;font-weight:600;">KOSDAQ</span><span class="sector-count">${kosdaqCnt}</span></li>`;
+
+  // KOSPI / KOSDAQ 순서로 표시, 하위에 섹터별
+  for (const market of ['KOSPI', 'KOSDAQ']) {
+    const mColor = market === 'KOSPI' ? '#dc2626' : '#2563eb';
+    const mBg = market === 'KOSPI' ? '#fef2f2' : '#eff6ff';
+    const mCount = market === 'KOSPI' ? allKospi : allKosdaq;
+    const isMarketActive = currentSector === '전체' && currentMarketFilter === market;
+    html += `<li class="sector-item ${isMarketActive?'active':''}" data-sector="전체" data-market="${market}" style="margin-top:6px;background:${isMarketActive?mColor:mBg};color:${isMarketActive?'#fff':mColor};font-weight:700;border-left:3px solid ${mColor};">
+      <span>${market}</span><span class="sector-count" style="${isMarketActive?'color:#fff':''}">${mCount}</span></li>`;
+    for (const [name, codes] of Object.entries(SECTOR_CONFIG)) {
+      const cnt = codes.filter(c => stockDataMap[c]?.market === market).length;
+      if (cnt === 0) continue;
+      const isActive = currentSector === name && currentMarketFilter === market;
+      html += `<li class="sector-item sector-sub ${isActive?'active':''}" data-sector="${name}" data-market="${market}" style="padding-left:28px;font-size:11px;">
+        <span>${name}</span><span class="sector-count">${cnt}</span></li>`;
     }
   }
+
   list.innerHTML = html;
   list.querySelectorAll('.sector-item').forEach(el => {
     el.addEventListener('click', () => {
