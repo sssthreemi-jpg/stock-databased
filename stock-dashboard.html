@@ -1302,6 +1302,11 @@ function renderSummary(stocks) {
 function applyFilters(stocks) {
   let filtered = [...stocks];
 
+  // KOSPI/KOSDAQ 시장 필터
+  if (currentMarketFilter) {
+    filtered = filtered.filter(s => s.market === currentMarketFilter);
+  }
+
   // 종목명/코드 검색
   const nameQuery = (document.getElementById('filterName')?.value || '').trim().toLowerCase();
   if (nameQuery) {
@@ -1351,9 +1356,10 @@ function renderTable(stocks) {
 
   // 필터 적용
   const filtered = applyFilters(stocks);
+  const marketLabel = currentMarketFilter ? ` — ${currentMarketFilter}` : '';
   const countLabel = filtered.length !== stocks.length
-    ? `${currentSector === '전체' ? '전체' : currentSector} (${filtered.length}/${stocks.length}개)`
-    : currentSector === '전체' ? '전체 종목' : `${currentSector} 섹터`;
+    ? `${currentSector === '전체' ? '전체' : currentSector}${marketLabel} (${filtered.length}/${stocks.length}개)`
+    : currentSector === '전체' ? '전체 종목' : `${currentSector}${marketLabel} 섹터`;
   titleEl.innerHTML = `${countLabel}<span class="filter-count">${filtered.length !== stocks.length ? '필터 적용 중' : ''}</span>`;
 
   if (!filtered.length) {
