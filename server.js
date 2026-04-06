@@ -2000,7 +2000,7 @@ const server = http.createServer(async (req, res) => {
             stopDesc: `손절가(${stopLoss.toLocaleString()}원) 이탈 시 전량 매도 (ATR 기반)`,
           },
         },
-        candles: candles.slice(-60).map(c => ({ d: c.date, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
+        candles: candles.slice(-150).map(c => ({ d: c.date, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
       };
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
