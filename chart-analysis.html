@@ -142,6 +142,8 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
 .rec-sector-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .rec-sector-btn{padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:11px;font-weight:600;color:#64748b;cursor:pointer}
 .rec-sector-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
+.rec-sector-btn[data-sector="관심종목"].active{background:#f59e0b;color:#fff;border-color:#f59e0b}
+.rec-sector-btn[data-sector="보유종목"].active{background:#3b82f6;color:#fff;border-color:#3b82f6}
 .rec-sector-btn.all{background:#334155;color:#fff;border-color:#334155}
 .rec-live-feed{margin-top:14px;max-height:420px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px}
 .rec-live-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;cursor:pointer;transition:background .1s}
@@ -775,22 +777,40 @@ document.getElementById('recStartBtn').addEventListener('click', async () => {
   feed.innerHTML = '';
   summary.style.display = 'none';
 
-  // 1단계: 섹터별 종목 풀 수집
-  statusText.textContent = '섹터별 종목 목록 수집 중...';
+  // 1단계: 종목 풀 수집 (관심종목 + 보유종목 + 섹터)
+  statusText.textContent = '종목 목록 수집 중...';
   let stockCodes = [];
-  try {
-    const r = await fetch(`/api/industry?sectors=${encodeURIComponent(sectors.join(','))}`);
-    const data = await r.json();
-    const seen = new Set();
-    for (const sector of sectors) {
-      (data[sector] || []).forEach(code => {
-        if (!seen.has(code)) { seen.add(code); stockCodes.push(code); }
-      });
+  const seen = new Set();
+
+  // 관심종목/보유종목 우선 추가
+  const hasLocal = sectors.includes('관심종목') || sectors.includes('보유종목') || sectors.includes('all');
+  if (sectors.includes('관심종목') || sectors.includes('all')) {
+    getWatchlistCodes().forEach(s => { if (!seen.has(s.code)) { seen.add(s.code); stockCodes.push(s.code); } });
+  }
+  if (sectors.includes('보유종목') || sectors.includes('all')) {
+    getHoldingsCodes().forEach(s => { if (!seen.has(s.code)) { seen.add(s.code); stockCodes.push(s.code); } });
+  }
+
+  // 섹터 종목 수집 (API)
+  const industrySectors = sectors.filter(s => !['all','관심종목','보유종목'].includes(s));
+  const needIndustry = sectors.includes('all') || industrySectors.length > 0;
+  if (needIndustry) {
+    const fetchSectors = sectors.includes('all') ? allSectors : industrySectors;
+    try {
+      const r = await fetch(`/api/industry?sectors=${encodeURIComponent(fetchSectors.join(','))}`);
+      const data = await r.json();
+      for (const sector of fetchSectors) {
+        (data[sector] || []).forEach(code => {
+          if (!seen.has(code)) { seen.add(code); stockCodes.push(code); }
+        });
+      }
+    } catch (e) {
+      if (stockCodes.length === 0) {
+        statusText.textContent = '종목 목록 수집 실패: ' + e.message;
+        startBtn.disabled = false;
+        return;
+      }
     }
-  } catch (e) {
-    statusText.textContent = '종목 목록 수집 실패: ' + e.message;
-    startBtn.disabled = false;
-    return;
   }
 
   if (stockCodes.length === 0) {
