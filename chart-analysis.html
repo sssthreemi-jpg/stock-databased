@@ -319,6 +319,114 @@ function renderReport(d){
   <div style="text-align:center;font-size:11px;color:#94a3b8;margin-top:8px">
     본 분석은 기술적 지표 기반 자동 산출 결과이며 투자 권유가 아닙니다. 모든 투자 판단과 책임은 투자자 본인에게 있습니다.
   </div>`;
+
+  // 캔들차트 렌더링
+  if(d.candles && d.candles.length > 0) renderCandleChart(d.candles, d.trading.prices);
+}
+
+let chartInstance = null;
+function renderCandleChart(candles, prices) {
+  const container = document.getElementById('chartContainer');
+  if(!container) return;
+  container.innerHTML = '';
+  if(chartInstance) { chartInstance.remove(); chartInstance = null; }
+
+  const chart = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: 420,
+    layout: { background: { type: 'solid', color: '#ffffff' }, textColor: '#1e293b', fontFamily: "'Segoe UI','Malgun Gothic',sans-serif" },
+    grid: { vertLines: { color: '#f1f5f9' }, horzLines: { color: '#f1f5f9' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#e2e8f0' },
+    timeScale: { borderColor: '#e2e8f0', timeVisible: false },
+  });
+  chartInstance = chart;
+
+  // 캔들스틱 시리즈
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#ef4444', downColor: '#2563eb',
+    borderUpColor: '#ef4444', borderDownColor: '#2563eb',
+    wickUpColor: '#ef4444', wickDownColor: '#2563eb',
+  });
+  candleSeries.setData(candles.map(c => ({ time: c.d, open: c.o, high: c.h, low: c.l, close: c.c })));
+
+  // 거래량 시리즈
+  const volSeries = chart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'vol',
+  });
+  chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+  volSeries.setData(candles.map(c => ({
+    time: c.d, value: c.v,
+    color: c.c >= c.o ? 'rgba(239,68,68,0.25)' : 'rgba(37,99,235,0.25)',
+  })));
+
+  // 이동평균선 계산 및 표시
+  const maConfigs = [
+    { period: 5,   color: '#f59e0b', name: 'MA5' },
+    { period: 10,  color: '#8b5cf6', name: 'MA10' },
+    { period: 20,  color: '#ef4444', name: 'MA20' },
+    { period: 60,  color: '#22c55e', name: 'MA60' },
+    { period: 120, color: '#3b82f6', name: 'MA120' },
+  ];
+  const maSeriesMap = {};
+  const closes = candles.map(c => c.c);
+
+  maConfigs.forEach(cfg => {
+    const maData = [];
+    for (let i = cfg.period - 1; i < candles.length; i++) {
+      let sum = 0;
+      for (let j = i - cfg.period + 1; j <= i; j++) sum += closes[j];
+      maData.push({ time: candles[i].d, value: Math.round(sum / cfg.period) });
+    }
+    const series = chart.addLineSeries({
+      color: cfg.color, lineWidth: 1.5,
+      lastValueVisible: false, priceLineVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    series.setData(maData);
+    maSeriesMap[cfg.name] = { series, visible: true };
+  });
+
+  // 매매가 수평선
+  const priceLines = [
+    { price: prices.aggressiveBuy, title: '공격매수', color: '#dc2626', style: 2 },
+    { price: prices.conservativeBuy, title: '보수매수', color: '#f97316', style: 2 },
+    { price: prices.stopLoss, title: '손절', color: '#64748b', style: 2 },
+    { price: prices.target1, title: '1차목표', color: '#059669', style: 2 },
+    { price: prices.target2, title: '2차목표', color: '#10b981', style: 2 },
+  ];
+  priceLines.forEach(pl => {
+    if(pl.price) candleSeries.createPriceLine({
+      price: pl.price, color: pl.color, lineWidth: 1,
+      lineStyle: pl.style, axisLabelVisible: true, title: pl.title,
+    });
+  });
+
+  // MA 범례 (토글 기능)
+  const legend = document.getElementById('maLegend');
+  if(legend) {
+    legend.innerHTML = maConfigs.map(cfg =>
+      `<div class="ma-legend-item" data-ma="${cfg.name}"><span class="dot" style="background:${cfg.color}"></span>${cfg.name}</div>`
+    ).join('');
+    legend.querySelectorAll('.ma-legend-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const name = el.dataset.ma;
+        const entry = maSeriesMap[name];
+        entry.visible = !entry.visible;
+        entry.series.applyOptions({ visible: entry.visible });
+        el.classList.toggle('off', !entry.visible);
+      });
+    });
+  }
+
+  chart.timeScale().fitContent();
+
+  // 리사이즈 대응
+  const ro = new ResizeObserver(() => {
+    chart.applyOptions({ width: container.clientWidth });
+  });
+  ro.observe(container);
 }
 
 // URL params
