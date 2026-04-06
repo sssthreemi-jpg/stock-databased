@@ -233,6 +233,13 @@ function renderReport(d){
     <div class="grade-sub">${a.pattern} | 추세: ${a.trend.short} | 배열: ${a.trend.alignment} | R/R ${t.returns.riskReward}배</div>
   </div>
 
+  <!-- 캔들차트 -->
+  <div class="chart-card">
+    <h3><span class="icon" style="background:linear-gradient(135deg,#0f172a,#334155)">C</span>일봉 캔들차트</h3>
+    <div id="chartContainer"></div>
+    <div class="ma-legend" id="maLegend"></div>
+  </div>
+
   <!-- 핵심 가격 -->
   <div class="card">
     <h3><span class="icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)">$</span>핵심 매매가</h3>
