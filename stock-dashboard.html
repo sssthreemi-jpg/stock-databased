@@ -1228,19 +1228,39 @@ function getStocks(sector) {
 // ══════════════════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════════════════
+let currentMarketFilter = ''; // '', 'KOSPI', 'KOSDAQ'
+
 function renderSidebar() {
   const list = document.getElementById('sectorList');
   const allStocks = getAllStocks();
-  let html = `<li class="sector-item ${currentSector==='전체'?'active':''}" data-sector="전체">
+  const allKospi = allStocks.filter(s => s.market === 'KOSPI').length;
+  const allKosdaq = allStocks.filter(s => s.market === 'KOSDAQ').length;
+  let html = `<li class="sector-item ${currentSector==='전체' && !currentMarketFilter?'active':''}" data-sector="전체" data-market="">
     <span>전체</span><span class="sector-count">${allStocks.length}</span></li>`;
   for (const [name, codes] of Object.entries(SECTOR_CONFIG)) {
-    const count = codes.filter(c => stockDataMap[c]).length;
-    html += `<li class="sector-item ${currentSector===name?'active':''}" data-sector="${name}">
-      <span>${name}</span><span class="sector-count">${count}</span></li>`;
+    const loaded = codes.filter(c => stockDataMap[c]);
+    const total = loaded.length;
+    const kospiCnt = loaded.filter(c => stockDataMap[c]?.market === 'KOSPI').length;
+    const kosdaqCnt = loaded.filter(c => stockDataMap[c]?.market === 'KOSDAQ').length;
+    const isActive = currentSector === name && !currentMarketFilter;
+    const isKospiActive = currentSector === name && currentMarketFilter === 'KOSPI';
+    const isKosdaqActive = currentSector === name && currentMarketFilter === 'KOSDAQ';
+    html += `<li class="sector-item ${isActive?'active':''}" data-sector="${name}" data-market="">
+      <span>${name}</span><span class="sector-count">${total}</span></li>`;
+    if (total > 0) {
+      html += `<li class="sector-item sector-sub ${isKospiActive?'active':''}" data-sector="${name}" data-market="KOSPI" style="padding-left:28px;font-size:11px;">
+        <span style="color:#dc2626;font-weight:600;">KOSPI</span><span class="sector-count">${kospiCnt}</span></li>`;
+      html += `<li class="sector-item sector-sub ${isKosdaqActive?'active':''}" data-sector="${name}" data-market="KOSDAQ" style="padding-left:28px;font-size:11px;">
+        <span style="color:#2563eb;font-weight:600;">KOSDAQ</span><span class="sector-count">${kosdaqCnt}</span></li>`;
+    }
   }
   list.innerHTML = html;
   list.querySelectorAll('.sector-item').forEach(el => {
-    el.addEventListener('click', () => { currentSector = el.dataset.sector; render(); });
+    el.addEventListener('click', () => {
+      currentSector = el.dataset.sector;
+      currentMarketFilter = el.dataset.market || '';
+      render();
+    });
   });
 }
 
