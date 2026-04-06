@@ -239,6 +239,8 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
     <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;">분석 대상 섹터</div>
     <div class="rec-sector-wrap" id="recSectorWrap">
       <button class="rec-sector-btn all active" data-sector="all">전체</button>
+      <button class="rec-sector-btn" data-sector="관심종목" style="background:#fff3cd;color:#92400e;border-color:#fbbf24">⭐ 관심종목 <span id="recWatchCnt"></span></button>
+      <button class="rec-sector-btn" data-sector="보유종목" style="background:#dbeafe;color:#1e40af;border-color:#60a5fa">💼 보유종목 <span id="recHoldCnt"></span></button>
       <button class="rec-sector-btn" data-sector="반도체">반도체</button>
       <button class="rec-sector-btn" data-sector="2차전지">2차전지</button>
       <button class="rec-sector-btn" data-sector="바이오">바이오</button>
@@ -692,6 +694,22 @@ function exportCSV() {
 let recAbort = false;
 let recSelectedGrade = '조건부 매수 후보';
 let recSelectedSectors = ['all'];
+
+// localStorage에서 관심/보유종목 가져오기
+function getWatchlistCodes() {
+  try { return JSON.parse(localStorage.getItem('watchlist_manual') || '[]'); } catch { return []; }
+}
+function getHoldingsCodes() {
+  try { return JSON.parse(localStorage.getItem('holdings_manual') || '[]'); } catch { return []; }
+}
+// 관심/보유 종목 수 표시
+function updateRecCounts() {
+  const wc = document.getElementById('recWatchCnt');
+  const hc = document.getElementById('recHoldCnt');
+  if (wc) wc.textContent = `(${getWatchlistCodes().length})`;
+  if (hc) hc.textContent = `(${getHoldingsCodes().length})`;
+}
+updateRecCounts();
 
 // 등급 버튼 토글
 document.querySelectorAll('.rec-grade-btn').forEach(btn => {
