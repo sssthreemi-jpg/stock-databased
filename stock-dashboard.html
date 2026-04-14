@@ -196,7 +196,6 @@
   .upside { font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px; }
   .upside-pos { background: rgba(220,38,38,0.08); color: #dc2626; }
   .upside-neg { background: rgba(37,99,235,0.08); color: #2563eb; }
-  .mini-chart { width: 80px; height: 32px; }
 
   /* ── Filter ── */
   .filter-search input {
@@ -549,11 +548,11 @@
             <th>시가총액</th><th>PER</th><th>PBR</th>
             <th>매출액(최근)</th><th>영업이익(최근)</th>
             <th>매출액(직전)</th><th>영업이익(직전)</th>
-            <th>목표주가</th><th>괴리율</th><th>52주 추이</th>
+            <th>목표주가</th><th>괴리율</th>
           </tr>
         </thead>
         <tbody id="stockTableBody">
-          <tr><td colspan="13"><div class="loading-overlay"><div class="spinner"></div>데이터를 불러오는 중...</div></td></tr>
+          <tr><td colspan="12"><div class="loading-overlay"><div class="spinner"></div>데이터를 불러오는 중...</div></td></tr>
         </tbody>
       </table>
       </div>
@@ -682,11 +681,6 @@ async function fetchStockIntegration(code) {
   return res.json();
 }
 
-// 종목 차트 데이터 (52주)
-async function fetchStockChart(code) {
-  const res = await fetchWithProxy(`${NAVER_API}/stock/${code}/yearChart`);
-  return res.json();
-}
 
 // 목표주가 & 투자의견 & 리포트 (서버에서 PC 네이버 금융 스크래핑)
 async function fetchTargetPrice(code) {
@@ -743,7 +737,6 @@ function parseStockData(basic, integration, chartData, targetInfo, quarterData, 
     broker: '',
     reportTitle: '',
     reportDate: '',
-    history: [],
     revenue: 0,         // 최근 분기 매출액 (억원)
     operatingProfit: 0,  // 최근 분기 영업이익 (억원)
     revenuePeriod: '',   // 분기 기간 (예: "2025.12.")
@@ -778,20 +771,6 @@ function parseStockData(basic, integration, chartData, targetInfo, quarterData, 
   }
   if (!stock.per && basic?.per) stock.per = parseNum(basic.per);
   if (!stock.pbr && basic?.pbr) stock.pbr = parseNum(basic.pbr);
-
-  // 차트 히스토리
-  if (chartData) {
-    const prices = chartData.priceInfos || chartData || [];
-    if (Array.isArray(prices)) {
-      stock.history = prices.slice(-12).map(p => parseNum(p.closePrice || p.close_price || p));
-    }
-  }
-  if (stock.history.length === 0) {
-    stock.history = Array.from({length: 12}, () =>
-      Math.round(stock.price * (0.92 + Math.random() * 0.16))
-    );
-    stock.history[11] = stock.price;
-  }
 
   // 목표주가 & 투자의견 (PC 네이버 금융 스크래핑 결과)
   if (targetInfo) {
@@ -886,10 +865,9 @@ async function fetchAllData() {
   const stockPromises = allCodes.map(async code => {
     try {
       // basic은 필수, 나머지는 선택적
-      const [basic, integration, chart, targetInfo, quarter] = await Promise.allSettled([
+      const [basic, integration, targetInfo, quarter] = await Promise.allSettled([
         fetchStockBasic(code),
         fetchStockIntegration(code),
-        fetchStockChart(code),
         fetchTargetPrice(code),
         fetchQuarterFinance(code),
       ]);
@@ -901,7 +879,7 @@ async function fetchAllData() {
         data: parseStockData(
           basic.value,
           integration.status === 'fulfilled' ? integration.value : null,
-          chart.status === 'fulfilled' ? chart.value : null,
+          null,
           targetInfo.status === 'fulfilled' ? targetInfo.value : null,
           quarter.status === 'fulfilled' ? quarter.value : null,
           code,
@@ -981,7 +959,6 @@ let currentSector = '전체';
 let currentSort = 'marketCap';
 let perChartInst = null;
 let upsideChartInst = null;
-const miniCharts = {};
 
 // ══════════════════════════════════════════════════════
 // WATCHLIST (관심종목) — 네이버 금융 계정 연동 + 수동 추가
@@ -1457,32 +1434,9 @@ function renderTable(stocks) {
       <td class="${prevOpColor}">${fmtFin(s.prevOperatingProfit)}${ppLabel}</td>
       <td class="target-price">${s.target > 0 ? s.target.toLocaleString() : '-'}${s.broker ? `<br><span style="font-size:10px;color:#64748b;font-weight:400">${s.broker}</span>` : ''}</td>
       <td>${upsideHtml}</td>
-      <td><canvas class="mini-chart" id="mini-${s.code}"></canvas></td>
     </tr>`;
   }).join('');
 
-  // 스파크라인 렌더
-  setTimeout(() => {
-    sorted.forEach(s => {
-      const canvas = document.getElementById(`mini-${s.code}`);
-      if (!canvas || s.history.length < 2) return;
-      if (miniCharts[s.code]) miniCharts[s.code].destroy();
-      const color = s.change >= 0 ? '#ef4444' : '#3b82f6';
-      miniCharts[s.code] = new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: s.history.map((_,i) => i),
-          datasets: [{ data: s.history, borderColor: color, borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 }]
-        },
-        options: {
-          responsive: false,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-          scales: { x: { display: false }, y: { display: false } },
-          animation: false
-        }
-      });
-    });
-  }, 50);
 }
 
 function renderReports() {
