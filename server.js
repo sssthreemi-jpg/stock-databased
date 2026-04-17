@@ -1491,15 +1491,37 @@ const server = http.createServer(async (req, res) => {
       const stopBase = Math.min(support1, recentSwingLow);
       const stopLoss = Math.round(stopBase - atr * 0.5);
 
-      // 목표가 1,2: 현실적 (가장 가까운 저항선 기반)
-      const target1 = Math.round(resistance1);
-      const target2 = Math.round(resistance2);
+      // 공통: 스윙 범위 / 추세 보정 계수
+      const swingRange = high20 - low20;
+      // 추세가 강할수록 목표가를 위로 끌어올림 (최대 +18%)
+      let trendBoost = 1.0;
+      if (isJungBae) trendBoost += 0.05;            // 정배열
+      if (ma20Slope > 0.5) trendBoost += 0.05;      // 강한 단기 상승
+      if (ma60Slope > 0.3) trendBoost += 0.05;      // 강한 중기 상승
+      if (volRatio > 1.5) trendBoost += 0.03;       // 거래량 동반
+      trendBoost = Math.min(trendBoost, 1.18);
+
+      // 목표가 1,2: 현실적 (다중 차트분석 기법 융합)
+      // (1) 가까운 저항선 (2) ATR 변동성 투영 (3) 측정이동(Measured Move)
+      // (4) 피보나치 1.272 확장 → 가중평균 후 추세 보정
+
+      // 1차: 저항1 + 3ATR + 0.5 측정이동 평균
+      const t1_atrProj   = aggressiveBuy + atr * 3;
+      const t1_measured  = aggressiveBuy + swingRange * 0.5;
+      const t1_avg       = (resistance1 + t1_atrProj + t1_measured) / 3;
+      let target1        = Math.round(Math.max(resistance1, t1_avg * trendBoost));
+
+      // 2차: 저항2 + 5ATR + 1.0 측정이동 + 피보나치 1.272 평균
+      const t2_atrProj   = aggressiveBuy + atr * 5;
+      const t2_measured  = aggressiveBuy + swingRange * 1.0;
+      const t2_fib1272   = high20 + swingRange * 0.272;
+      const t2_avg       = (resistance2 + t2_atrProj + t2_measured + t2_fib1272) / 4;
+      let target2        = Math.round(Math.max(target1 * 1.03, t2_avg * trendBoost));
 
       // 목표가 3,4: 공격적 (R/R 비율 + 피보나치 확장)
       const risk = aggressiveBuy - stopLoss;
       const minTarget3 = Math.round(aggressiveBuy + risk * 1.5);
       const minTarget4 = Math.round(aggressiveBuy + risk * 2.5);
-      const swingRange = high20 - low20;
       const fib1618 = Math.round(high20 + swingRange * 0.618);
       const fib2618 = Math.round(high20 + swingRange * 1.618);
       const target3 = Math.max(target2, minTarget3, fib1618);
