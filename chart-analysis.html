@@ -224,7 +224,7 @@ body{font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;bac
           <thead>
             <tr>
               <th>종목명</th><th>현재가</th><th>공격적매수</th><th>보수적매수</th>
-              <th>손절가</th><th>1차목표</th><th>2차목표</th><th>손익비</th><th>최종의견</th>
+              <th>손절가</th><th>1차목표</th><th>2차목표</th><th>3차목표</th><th>4차목표</th><th>손익비</th><th>최종의견</th>
             </tr>
           </thead>
           <tbody id="bulkTableBody"></tbody>
@@ -323,6 +323,8 @@ function renderReport(d){
       <div class="price-item stop"><div class="label">손절가</div><div class="value">${fmt(t.prices.stopLoss)}</div></div>
       <div class="price-item target"><div class="label">1차 목표</div><div class="value">${fmt(t.prices.target1)}</div></div>
       <div class="price-item target"><div class="label">2차 목표</div><div class="value">${fmt(t.prices.target2)}</div></div>
+      <div class="price-item sell"><div class="label">3차 목표</div><div class="value">${fmt(t.prices.target3)}</div></div>
+      <div class="price-item sell"><div class="label">4차 목표</div><div class="value">${fmt(t.prices.target4)}</div></div>
     </div>
     ${(t.buyMethods && t.buyMethods.length > 0) ? `<div style="margin-top:14px;padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
       <div style="font-size:11px;font-weight:700;color:#166534;margin-bottom:6px;">매수가 산출 근거</div>
@@ -335,6 +337,8 @@ function renderReport(d){
     <h3><span class="icon" style="background:linear-gradient(135deg,#10b981,#059669)">%</span>기대 손익</h3>
     <div class="return-bar"><span class="rb-label">1차 기대수익</span><div class="rb-track"><div class="rb-fill pos" style="width:${Math.min(Math.abs(t.returns.expectedReturn1)*3,100)}%">${t.returns.expectedReturn1>0?'+':''}${t.returns.expectedReturn1}%</div></div></div>
     <div class="return-bar"><span class="rb-label">2차 기대수익</span><div class="rb-track"><div class="rb-fill pos" style="width:${Math.min(Math.abs(t.returns.expectedReturn2)*3,100)}%">${t.returns.expectedReturn2>0?'+':''}${t.returns.expectedReturn2}%</div></div></div>
+    <div class="return-bar"><span class="rb-label">3차 기대수익</span><div class="rb-track"><div class="rb-fill pos" style="width:${Math.min(Math.abs(t.returns.expectedReturn3)*3,100)}%">${t.returns.expectedReturn3>0?'+':''}${t.returns.expectedReturn3}%</div></div></div>
+    <div class="return-bar"><span class="rb-label">4차 기대수익</span><div class="rb-track"><div class="rb-fill pos" style="width:${Math.min(Math.abs(t.returns.expectedReturn4)*3,100)}%">${t.returns.expectedReturn4>0?'+':''}${t.returns.expectedReturn4}%</div></div></div>
     <div class="return-bar"><span class="rb-label">예상 손실</span><div class="rb-track"><div class="rb-fill neg" style="width:${Math.min(Math.abs(t.returns.expectedLoss)*3,100)}%">${t.returns.expectedLoss}%</div></div></div>
     <div style="text-align:center;margin-top:12px;font-size:14px;font-weight:700;color:#0f172a">손익비 (R/R): <span style="color:${t.returns.riskReward>=1.5?'#059669':'#dc2626'};font-size:18px">${t.returns.riskReward}배</span></div>
   </div>
@@ -468,6 +472,8 @@ function renderCandleChart(candles, prices) {
     { price: prices.stopLoss, title: '손절', color: '#64748b', style: 2 },
     { price: prices.target1, title: '1차목표', color: '#059669', style: 2 },
     { price: prices.target2, title: '2차목표', color: '#10b981', style: 2 },
+    { price: prices.target3, title: '3차목표', color: '#0891b2', style: 1 },
+    { price: prices.target4, title: '4차목표', color: '#6366f1', style: 1 },
   ];
   priceLines.forEach(pl => {
     if(pl.price) candleSeries.createPriceLine({
@@ -626,6 +632,8 @@ document.getElementById('bulkAnalyzeBtn').addEventListener('click', async () => 
         stopLoss: d.trading.prices.stopLoss,
         target1: d.trading.prices.target1,
         target2: d.trading.prices.target2,
+        target3: d.trading.prices.target3,
+        target4: d.trading.prices.target4,
         rr: d.trading.returns.riskReward,
         grade: d.trading.grade,
       });
@@ -667,11 +675,13 @@ function renderBulkTable() {
       <td style="color:#64748b">${fmt(r.stopLoss)}</td>
       <td style="color:#059669">${fmt(r.target1)}</td>
       <td style="color:#059669">${fmt(r.target2)}</td>
+      <td style="color:#0891b2">${fmt(r.target3)}</td>
+      <td style="color:#6366f1">${fmt(r.target4)}</td>
       <td style="font-weight:700;color:${r.rr>=1.5?'#059669':'#dc2626'}">${r.rr}배</td>
       <td><span class="grade-chip" style="background:${gradeColor(r.grade)}">${r.grade}</span></td>
     </tr>
   `).join('') + errors.map(r => `
-    <tr style="opacity:.5"><td>${r.name}</td><td colspan="8" style="text-align:left;color:#dc2626;font-size:11px">${r.error}</td></tr>
+    <tr style="opacity:.5"><td>${r.name}</td><td colspan="10" style="text-align:left;color:#dc2626;font-size:11px">${r.error}</td></tr>
   `).join('');
 
   document.getElementById('bulkResult').classList.add('active');
@@ -682,9 +692,9 @@ function renderBulkTable() {
 function exportCSV() {
   const valid = bulkResults.filter(r => !r.error);
   if (valid.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
-  const header = '종목명,종목코드,현재가,공격적매수가,보수적매수가,손절가,1차목표가,2차목표가,손익비,최종의견\n';
+  const header = '종목명,종목코드,현재가,공격적매수가,보수적매수가,손절가,1차목표가,2차목표가,3차목표가,4차목표가,손익비,최종의견\n';
   const rows = valid.map(r =>
-    `${r.name},${r.code},${r.price},${r.aggressiveBuy},${r.conservativeBuy},${r.stopLoss},${r.target1},${r.target2},${r.rr},${r.grade}`
+    `${r.name},${r.code},${r.price},${r.aggressiveBuy},${r.conservativeBuy},${r.stopLoss},${r.target1},${r.target2},${r.target3},${r.target4},${r.rr},${r.grade}`
   ).join('\n');
   const bom = '\uFEFF';
   const blob = new Blob([bom + header + rows], { type: 'text/csv;charset=utf-8;' });

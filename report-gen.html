@@ -790,6 +790,14 @@ header h1 { font-size: 20px; font-weight: 700; color: #0f4c81; letter-spacing: -
               <div style="font-size:10px;color:#166534;font-weight:700;">2차 목표</div>
               <div style="font-size:16px;font-weight:800;color:#059669;">${fmt(t.prices.target2)}</div>
             </div>
+            <div style="background:#ecfeff;border-radius:8px;padding:10px;text-align:center;border:1px solid #a5f3fc;">
+              <div style="font-size:10px;color:#0e7490;font-weight:700;">3차 목표</div>
+              <div style="font-size:16px;font-weight:800;color:#0891b2;">${fmt(t.prices.target3)}</div>
+            </div>
+            <div style="background:#eef2ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #c7d2fe;">
+              <div style="font-size:10px;color:#4338ca;font-weight:700;">4차 목표</div>
+              <div style="font-size:16px;font-weight:800;color:#6366f1;">${fmt(t.prices.target4)}</div>
+            </div>
             <div style="background:#eff6ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #bfdbfe;">
               <div style="font-size:10px;color:#1e40af;font-weight:700;">손익비(R/R)</div>
               <div style="font-size:16px;font-weight:800;color:${t.returns.riskReward>=1.5?'#059669':'#dc2626'};">${t.returns.riskReward}배</div>

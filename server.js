@@ -1491,24 +1491,25 @@ const server = http.createServer(async (req, res) => {
       const stopBase = Math.min(support1, recentSwingLow);
       const stopLoss = Math.round(stopBase - atr * 0.5);
 
-      // 목표가: 저항선 기반 + 최소 R/R 1.5:1 보장
-      const risk = aggressiveBuy - stopLoss;
-      const minTarget1 = Math.round(aggressiveBuy + risk * 1.5);  // 최소 R/R 1.5배
-      const minTarget2 = Math.round(aggressiveBuy + risk * 2.5);  // 최소 R/R 2.5배
+      // 목표가 1,2: 현실적 (가장 가까운 저항선 기반)
+      const target1 = Math.round(resistance1);
+      const target2 = Math.round(resistance2);
 
-      // 피보나치 확장 (최근 스윙로우 → 최근 고점 기준)
+      // 목표가 3,4: 공격적 (R/R 비율 + 피보나치 확장)
+      const risk = aggressiveBuy - stopLoss;
+      const minTarget3 = Math.round(aggressiveBuy + risk * 1.5);
+      const minTarget4 = Math.round(aggressiveBuy + risk * 2.5);
       const swingRange = high20 - low20;
       const fib1618 = Math.round(high20 + swingRange * 0.618);
       const fib2618 = Math.round(high20 + swingRange * 1.618);
+      const target3 = Math.max(target2, minTarget3, fib1618);
+      const target4 = Math.max(target3, minTarget4, fib2618);
 
-      // 1차 목표: 저항선과 최소 R/R 중 큰 값
-      const target1 = Math.max(resistance1, minTarget1, fib1618 > resistance1 ? resistance1 : 0);
-      // 2차 목표: 다음 저항선, 피보나치 확장, 최소 R/R 중 큰 값
-      const target2 = Math.max(resistance2, minTarget2, fib2618);
-
-      // 기대수익/손실
+      // 기대수익/손실 (현실적 목표 기준)
       const expectedReturn1 = price > 0 ? ((target1 - price) / price * 100) : 0;
       const expectedReturn2 = price > 0 ? ((target2 - price) / price * 100) : 0;
+      const expectedReturn3 = price > 0 ? ((target3 - price) / price * 100) : 0;
+      const expectedReturn4 = price > 0 ? ((target4 - price) / price * 100) : 0;
       const expectedLoss = price > 0 ? ((stopLoss - price) / price * 100) : 0;
       const riskReward = Math.abs(expectedLoss) > 0 ? (expectedReturn1 / Math.abs(expectedLoss)) : 0;
 
@@ -1561,11 +1562,13 @@ const server = http.createServer(async (req, res) => {
         trading: {
           grade,
           prices: {
-            aggressiveBuy, conservativeBuy, additionalBuy, stopLoss, target1, target2,
+            aggressiveBuy, conservativeBuy, additionalBuy, stopLoss, target1, target2, target3, target4,
           },
           returns: {
             expectedReturn1: +expectedReturn1.toFixed(2),
             expectedReturn2: +expectedReturn2.toFixed(2),
+            expectedReturn3: +expectedReturn3.toFixed(2),
+            expectedReturn4: +expectedReturn4.toFixed(2),
             expectedLoss: +expectedLoss.toFixed(2),
             riskReward: +riskReward.toFixed(2),
           },
@@ -1573,7 +1576,7 @@ const server = http.createServer(async (req, res) => {
           strategy: {
             entry: buySignals.length >= 2 ? `${buySignals.slice(0,2).join(' + ')} 확인 시 진입` : '조건 충족 대기',
             hold: buySignals.length > 0 ? '진입 후 보류 조건: ' + (excludeSignals[0] || '없음') : '진입 불가',
-            exit: `1차 목표(${target1.toLocaleString()}원) 도달 시 30~50% 매도, 2차 목표(${target2.toLocaleString()}원) 도달 시 추가 매도`,
+            exit: `1차(${target1.toLocaleString()}원) 20% 매도 → 2차(${target2.toLocaleString()}원) 30% → 3차(${target3.toLocaleString()}원) 30% → 4차(${target4.toLocaleString()}원) 잔량 매도`,
             stopDesc: `손절가(${stopLoss.toLocaleString()}원) 이탈 시 전량 매도 (스윙로우 ${recentSwingLow.toLocaleString()}원 하방 ATR 버퍼)`,
           },
         },
