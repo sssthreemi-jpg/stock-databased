@@ -410,6 +410,8 @@ const server = http.createServer(async (req, res) => {
             const titleMatch = r.match(/company_read[^>]*>([^<]*)</);
             const codeMatch = r.match(/code=(\d{6})/);
             const pdfMatch = r.match(/href="(https:\/\/stock\.pstatic\.net[^"]*)"/);
+            const linkMatch = r.match(/href="(company_read\.naver\?[^"]*)"/);
+            const reportUrl = linkMatch ? 'https://finance.naver.com/research/' + linkMatch[1].replace(/&amp;/g, '&') : '';
             reports.push({
               stockCode: codeMatch ? codeMatch[1] : '',
               stockName: tds[0] || '',
@@ -418,6 +420,7 @@ const server = http.createServer(async (req, res) => {
               date: tds[4] || '',
               views: tds[5] || '',
               pdfUrl: pdfMatch ? pdfMatch[1] : '',
+              reportUrl,
             });
           });
         }
@@ -466,6 +469,8 @@ const server = http.createServer(async (req, res) => {
             const tds = (r.match(/<td[^>]*>[\s\S]*?<\/td>/g) || []);
             const titleMatch = r.match(/company_read[^>]*>([^<]*)</);
             const pdfMatch = r.match(/href="(https:\/\/stock\.pstatic\.net[^"]*)"/);
+            const linkMatch = r.match(/href="(company_read\.naver\?[^"]*)"/);
+            const reportUrl = linkMatch ? 'https://finance.naver.com/research/' + linkMatch[1].replace(/&amp;/g, '&') : '';
             const tdTexts = tds.map(t => t.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
             reports.push({
               title: titleMatch ? titleMatch[1].trim() : '',
@@ -473,6 +478,7 @@ const server = http.createServer(async (req, res) => {
               date: tdTexts[4] || '',
               views: tdTexts[5] || '',
               pdfUrl: pdfMatch ? pdfMatch[1] : '',
+              reportUrl,
               stockName: searchName,
               stockCode: searchCode,
             });
