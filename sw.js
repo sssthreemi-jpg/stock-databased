@@ -4,7 +4,6 @@ const PRECACHE = [
   '/chart-analysis.html',
   '/reports.html',
   '/report-gen.html',
-  '/scoring.html',
   '/quant.html',
   '/deep-report.html',
   '/manifest.json',
