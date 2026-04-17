@@ -1844,101 +1844,92 @@ const server = http.createServer(async (req, res) => {
       if (price > ma20 * 1.20)
         excludeSignals.push('이격 과다 (MA20 대비 +' + ((price/ma20-1)*100).toFixed(1) + '%)');
 
-      // ── 매매가 산출 (3가지 기법 기반) ──
+      // ── 매매가 산출 (현재 지지/저항 레벨 기반) ──
 
-      // 기법1: 골든크로스 매수가 — MA5/MA20 골든크로스 시점의 종가
-      // MA5가 MA20을 상향돌파하는 시점을 찾아 그 시점의 종가를 매수 기준으로 활용
-      let goldenCrossPrice = 0;
-      const ma5Arr = [], ma20Arr = [];
-      for (let i = 0; i < n; i++) {
-        ma5Arr.push(i >= 4 ? closes.slice(i-4, i+1).reduce((a,b)=>a+b,0)/5 : 0);
-        ma20Arr.push(i >= 19 ? closes.slice(i-19, i+1).reduce((a,b)=>a+b,0)/20 : 0);
-      }
-      for (let i = n-1; i >= 20; i--) {
-        if (ma5Arr[i] > ma20Arr[i] && ma5Arr[i-1] <= ma20Arr[i-1]) {
-          goldenCrossPrice = closes[i];
-          break;
-        }
-      }
+      // 최근 스윙로우 (20일 내 저점)
+      const recentSwingLow = low20;
 
-      // 기법2: 볼린저밴드 하단 매수가 — 종가가 BB 하단 아래로 내려간 시점의 종가
-      let bbBuyPrice = 0;
-      if (n >= 20) {
-        for (let i = n-1; i >= 20; i--) {
-          const sl = closes.slice(i-19, i+1);
-          const m = sl.reduce((a,b)=>a+b,0)/20;
-          const s = Math.sqrt(sl.reduce((a,b)=>a+(b-m)**2,0)/20);
-          const bbLow = m - 2*s;
-          if (closes[i] < bbLow) {
-            bbBuyPrice = closes[i];
-            break;
-          }
-        }
-      }
-
-      // 기법3: RSI 30 회복 매수가 — RSI가 30 이하에서 다시 30 위로 올라오는 시점
-      let rsiBuyPrice = 0;
-      if (n >= 15) {
-        const rsiArr = [];
-        for (let i = 0; i < n; i++) {
-          if (i < 14) { rsiArr.push(50); continue; }
-          let g = 0, l = 0;
-          for (let j = i-13; j <= i; j++) {
-            const d = closes[j] - closes[j-1];
-            if (d > 0) g += d; else l -= d;
-          }
-          const ag = g/14, al = l/14;
-          rsiArr.push(al === 0 ? 100 : 100 - 100/(1+ag/al));
-        }
-        for (let i = n-1; i >= 15; i--) {
-          if (rsiArr[i] >= 30 && rsiArr[i-1] < 30) {
-            rsiBuyPrice = closes[i];
-            break;
-          }
-        }
-      }
-
-      // 매수가 결정: 3가지 기법 중 유효한 값으로 공격적/보수적/추가매수 산출
-      const buyPriceCandidates = [goldenCrossPrice, bbBuyPrice, rsiBuyPrice].filter(v => v > 0).sort((a,b) => b-a);
+      // 매수가 후보: 현재 시점의 지지 레벨 기반
+      // 1순위 지지: 가장 가까운 이평선 지지 또는 BB 중심선
+      // 2순위 지지: 다음 이평선 또는 BB 하단
+      // 3순위 지지: 더 깊은 지지선 또는 스윙로우
+      const nearSupports = [ma5, ma20, bbMiddle, s1].filter(v => v > 0 && v < price).sort((a,b) => b-a);
+      const deepSupports = [ma60, bbLower, s2, recentSwingLow].filter(v => v > 0 && v < price).sort((a,b) => b-a);
+      const deepestSupports = [ma120, support2].filter(v => v > 0 && v < price).sort((a,b) => b-a);
 
       let aggressiveBuy, conservativeBuy, additionalBuy;
-      if (buyPriceCandidates.length >= 3) {
-        aggressiveBuy = Math.round(buyPriceCandidates[0]);   // 가장 높은 (골든크로스 근처)
-        conservativeBuy = Math.round(buyPriceCandidates[1]); // 중간 (BB 하단 등)
-        additionalBuy = Math.round(buyPriceCandidates[2]);   // 가장 낮은 (RSI 과매도)
-      } else if (buyPriceCandidates.length === 2) {
-        aggressiveBuy = Math.round(buyPriceCandidates[0]);
-        conservativeBuy = Math.round(buyPriceCandidates[1]);
-        additionalBuy = Math.round(Math.min(support2, buyPriceCandidates[1] * 0.97));
-      } else if (buyPriceCandidates.length === 1) {
-        aggressiveBuy = Math.round(buyPriceCandidates[0]);
-        conservativeBuy = Math.round(Math.min(ma20, buyPriceCandidates[0] * 0.97));
-        additionalBuy = Math.round(Math.min(support2, buyPriceCandidates[0] * 0.94));
+
+      // 공격적 매수: 가장 가까운 지지선 (1차 눌림목)
+      if (nearSupports.length > 0) {
+        aggressiveBuy = Math.round(nearSupports[0]);
       } else {
-        // 시그널 없으면 MA 기반 폴백
-        aggressiveBuy = Math.round(price * 0.99);
-        conservativeBuy = Math.round(Math.min(ma20, price * 0.95));
-        additionalBuy = Math.round(Math.min(ma60 || ma20 * 0.95, price * 0.90));
+        aggressiveBuy = Math.round(price * 0.98);
       }
+
+      // 보수적 매수: 중간 지지선 (MA60, BB하단 등)
+      if (deepSupports.length > 0) {
+        conservativeBuy = Math.round(deepSupports[0]);
+      } else if (nearSupports.length > 1) {
+        conservativeBuy = Math.round(nearSupports[nearSupports.length - 1]);
+      } else {
+        conservativeBuy = Math.round(price * 0.95);
+      }
+
+      // 추가매수: 깊은 지지선 (MA120, 스윙로우 등)
+      if (deepestSupports.length > 0) {
+        additionalBuy = Math.round(deepestSupports[0]);
+      } else if (deepSupports.length > 1) {
+        additionalBuy = Math.round(deepSupports[deepSupports.length - 1]);
+      } else {
+        additionalBuy = Math.round(price * 0.92);
+      }
+
+      // 매수가 순서 보장: 공격적 > 보수적 > 추가매수
+      if (aggressiveBuy > price) aggressiveBuy = Math.round(price * 0.98);
+      if (conservativeBuy >= aggressiveBuy) conservativeBuy = Math.round(aggressiveBuy * 0.96);
+      if (additionalBuy >= conservativeBuy) additionalBuy = Math.round(conservativeBuy * 0.96);
       if (conservativeBuy <= 0) conservativeBuy = Math.round(price * 0.95);
       if (additionalBuy <= 0) additionalBuy = Math.round(price * 0.90);
-      // 매수가는 현재가 이하여야 함
-      if (aggressiveBuy > price) aggressiveBuy = Math.round(price * 0.99);
-      if (conservativeBuy > aggressiveBuy) conservativeBuy = Math.round(aggressiveBuy * 0.96);
-      if (additionalBuy > conservativeBuy) additionalBuy = Math.round(conservativeBuy * 0.96);
-      // 공격적 > 보수적 > 추가매수 순서 보장
-      if (aggressiveBuy <= conservativeBuy) conservativeBuy = Math.round(aggressiveBuy * 0.96);
-      if (conservativeBuy <= additionalBuy) additionalBuy = Math.round(conservativeBuy * 0.96);
 
-      // 매수 기법 표시
+      // 매수 근거 표시
       const buyMethods = [];
-      if (goldenCrossPrice > 0) buyMethods.push(`골든크로스(MA5/MA20) 매수가 ${goldenCrossPrice.toLocaleString()}원`);
-      if (bbBuyPrice > 0) buyMethods.push(`볼린저밴드 하단 이탈 매수가 ${bbBuyPrice.toLocaleString()}원`);
-      if (rsiBuyPrice > 0) buyMethods.push(`RSI 30 회복 매수가 ${rsiBuyPrice.toLocaleString()}원`);
+      if (nearSupports.length > 0) {
+        const lvl = nearSupports[0];
+        if (Math.abs(lvl - ma5) < atr * 0.3) buyMethods.push(`MA5 지지선 (${Math.round(ma5).toLocaleString()}원)`);
+        else if (Math.abs(lvl - ma20) < atr * 0.3) buyMethods.push(`MA20 지지선 (${Math.round(ma20).toLocaleString()}원)`);
+        else if (Math.abs(lvl - bbMiddle) < atr * 0.3) buyMethods.push(`볼린저밴드 중심선 (${Math.round(bbMiddle).toLocaleString()}원)`);
+        else buyMethods.push(`피봇 지지선 S1 (${Math.round(s1).toLocaleString()}원)`);
+      }
+      if (deepSupports.length > 0) {
+        const lvl = deepSupports[0];
+        if (ma60 > 0 && Math.abs(lvl - ma60) < atr * 0.3) buyMethods.push(`MA60 지지선 (${Math.round(ma60).toLocaleString()}원)`);
+        else if (Math.abs(lvl - bbLower) < atr * 0.3) buyMethods.push(`볼린저밴드 하단 (${Math.round(bbLower).toLocaleString()}원)`);
+        else buyMethods.push(`피봇 지지선 S2 (${Math.round(s2).toLocaleString()}원)`);
+      }
+      if (deepestSupports.length > 0) {
+        const lvl = deepestSupports[0];
+        if (ma120 > 0 && Math.abs(lvl - ma120) < atr * 0.3) buyMethods.push(`MA120 장기 지지 (${Math.round(ma120).toLocaleString()}원)`);
+        else buyMethods.push(`주요 지지선 (${Math.round(lvl).toLocaleString()}원)`);
+      }
 
-      const stopLoss = Math.round(Math.min(support1 - atr * 0.5, price - atr * 1.5));
-      const target1 = Math.round(resistance1);
-      const target2 = Math.round(resistance2);
+      // 손절가: 주요 지지선 아래 ATR 버퍼 (스윙로우 하방)
+      const stopBase = Math.min(support1, recentSwingLow);
+      const stopLoss = Math.round(stopBase - atr * 0.5);
+
+      // 목표가: 저항선 기반 + 최소 R/R 1.5:1 보장
+      const risk = aggressiveBuy - stopLoss;
+      const minTarget1 = Math.round(aggressiveBuy + risk * 1.5);  // 최소 R/R 1.5배
+      const minTarget2 = Math.round(aggressiveBuy + risk * 2.5);  // 최소 R/R 2.5배
+
+      // 피보나치 확장 (최근 스윙로우 → 최근 고점 기준)
+      const swingRange = high20 - low20;
+      const fib1618 = Math.round(high20 + swingRange * 0.618);
+      const fib2618 = Math.round(high20 + swingRange * 1.618);
+
+      // 1차 목표: 저항선과 최소 R/R 중 큰 값
+      const target1 = Math.max(resistance1, minTarget1, fib1618 > resistance1 ? resistance1 : 0);
+      // 2차 목표: 다음 저항선, 피보나치 확장, 최소 R/R 중 큰 값
+      const target2 = Math.max(resistance2, minTarget2, fib2618);
 
       // 기대수익/손실
       const expectedReturn1 = price > 0 ? ((target1 - price) / price * 100) : 0;
@@ -2008,7 +1999,7 @@ const server = http.createServer(async (req, res) => {
             entry: buySignals.length >= 2 ? `${buySignals.slice(0,2).join(' + ')} 확인 시 진입` : '조건 충족 대기',
             hold: buySignals.length > 0 ? '진입 후 보류 조건: ' + (excludeSignals[0] || '없음') : '진입 불가',
             exit: `1차 목표(${target1.toLocaleString()}원) 도달 시 30~50% 매도, 2차 목표(${target2.toLocaleString()}원) 도달 시 추가 매도`,
-            stopDesc: `손절가(${stopLoss.toLocaleString()}원) 이탈 시 전량 매도 (ATR 기반)`,
+            stopDesc: `손절가(${stopLoss.toLocaleString()}원) 이탈 시 전량 매도 (스윙로우 ${recentSwingLow.toLocaleString()}원 하방 ATR 버퍼)`,
           },
         },
         candles: candles.slice(-150).map(c => ({ d: c.date, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
