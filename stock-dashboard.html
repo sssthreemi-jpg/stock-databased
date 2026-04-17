@@ -1022,7 +1022,7 @@ function renderHoldingsSidebar() {
 
   itemsEl.innerHTML = list.map(w => `
     <li class="watchlist-item">
-      <span class="watchlist-item-name" onclick="currentSector='보유종목';render();">${w.name}</span>
+      <span class="watchlist-item-name" onclick="currentSector='보유종목';render();" ondblclick="event.stopPropagation();window.open('/report-gen.html?code='+encodeURIComponent('${w.code}')+'&name='+encodeURIComponent('${w.name}'),'_blank');" style="cursor:pointer;" title="더블클릭: 종목분석">${w.name}</span>
       <button class="watchlist-del" data-code="${w.code}" title="삭제">&times;</button>
     </li>
   `).join('');
@@ -1169,7 +1169,7 @@ function renderWatchlistSidebar() {
   const manual = getManualWatchlist();
   itemsEl.innerHTML = manual.map(w => `
     <li class="watchlist-item">
-      <span class="watchlist-item-name" onclick="currentSector='관심종목';render();">${w.name}</span>
+      <span class="watchlist-item-name" onclick="currentSector='관심종목';render();" ondblclick="event.stopPropagation();window.open('/report-gen.html?code='+encodeURIComponent('${w.code}')+'&name='+encodeURIComponent('${w.name}'),'_blank');" style="cursor:pointer;" title="더블클릭: 종목분석">${w.name}</span>
       <button class="watchlist-del" data-code="${w.code}" title="삭제">&times;</button>
     </li>
   `).join('');
