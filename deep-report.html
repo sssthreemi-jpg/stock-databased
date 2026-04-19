@@ -277,14 +277,14 @@ body {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         프롬프트 복사
       </button>
-      <a class="btn-ai btn-chatgpt" href="https://chatgpt.com" target="_blank">
+      <button type="button" class="btn-ai btn-chatgpt" onclick="openChatGPT()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
-        ChatGPT 열기
-      </a>
-      <a class="btn-ai btn-gemini" href="https://gemini.google.com/app" target="_blank">
+        ChatGPT에 자동 입력
+      </button>
+      <button type="button" class="btn-ai btn-gemini" onclick="openGemini()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 3.6a8.4 8.4 0 1 1 0 16.8 8.4 8.4 0 0 1 0-16.8z"/><circle cx="12" cy="12" r="4.8"/></svg>
-        Gemini 열기
-      </a>
+        Gemini 열기 (붙여넣기 필요)
+      </button>
     </div>
     <div class="prompt-box" id="promptBox"></div>
   </div>
@@ -580,10 +580,44 @@ ${irNote ? `\n=== IR 통화 내용 (참고) ===\n${irNote}\n` : ''}
 
 // Copy prompt
 function copyPrompt() {
+  navigator.clipboard.writeText(savedPrompt).then(() => showToast('클립보드에 복사되었습니다!'));
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ChatGPT는 ?q= 파라미터로 자동 입력 가능 (전송은 Enter 필요).
+// URL 총 길이가 너무 길면 브라우저/서버 제한으로 실패 → 클립보드만 복사하고 홈페이지 열기.
+const CHATGPT_URL_MAX = 4000;
+
+function openChatGPT() {
+  if (!savedPrompt) { showToast('먼저 데이터 수집을 완료하세요'); return; }
+  const encoded = encodeURIComponent(savedPrompt);
+  // 클립보드 백업 (URL 실패 시 수동 붙여넣기 가능)
+  navigator.clipboard.writeText(savedPrompt).catch(() => {});
+  if (encoded.length <= CHATGPT_URL_MAX) {
+    window.open(`https://chatgpt.com/?q=${encoded}`, '_blank');
+    showToast('ChatGPT 열기 — Enter로 전송하세요');
+  } else {
+    window.open('https://chatgpt.com', '_blank');
+    showToast('프롬프트가 길어 URL 전달 불가. 복사되었으니 Ctrl+V로 붙여넣으세요');
+  }
+}
+
+// Gemini는 공식 URL 파라미터 없음 → 클립보드 복사 + 홈페이지 열기.
+// (크롬 확장 "Gemini URL Prompt" 설치 시 ?prompt= 지원 가능)
+function openGemini() {
+  if (!savedPrompt) { showToast('먼저 데이터 수집을 완료하세요'); return; }
   navigator.clipboard.writeText(savedPrompt).then(() => {
-    const toast = document.getElementById('toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2000);
+    window.open('https://gemini.google.com/app', '_blank');
+    showToast('프롬프트 복사됨 — Gemini에서 Ctrl+V로 붙여넣으세요');
+  }).catch(() => {
+    window.open('https://gemini.google.com/app', '_blank');
+    showToast('클립보드 복사 실패. 위 복사 버튼을 먼저 누르세요');
   });
 }
 
