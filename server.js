@@ -2,6 +2,13 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+
+// 트레이딩 시스템 Python 경로 (환경변수로 오버라이드 가능)
+const TRADING_PYTHON = process.env.TRADING_PYTHON ||
+  'C:\\Users\\이윤강\\trading-system\\venv\\Scripts\\python.exe';
+const TRADING_SCRIPT = process.env.TRADING_SCRIPT ||
+  'C:\\Users\\이윤강\\trading-system\\trading_system.py';
 
 const PORT = process.env.PORT || 3000;
 
@@ -1611,6 +1618,150 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  // ── 트레이딩 시스템 분석 (Python 연동): /api/trading-analysis ──
+  if (parsedUrl.pathname === '/api/trading-analysis' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      let payload;
+      try { payload = JSON.parse(body || '{}'); }
+      catch { payload = {}; }
+
+      const rawTickers = Array.isArray(payload.tickers) ? payload.tickers : [];
+      const inputs = rawTickers.map(t => String(t).trim()).filter(Boolean);
+      if (!inputs.length) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'tickers 배열이 비어있습니다' }));
+        return;
+      }
+
+      // 입력 → yfinance 티커 해석 (Naver API)
+      const resolutions = await Promise.all(inputs.map(async (raw) => {
+        // 이미 yfinance 포맷
+        if (/\.(KS|KQ)$/i.test(raw)) return { input: raw, ticker: raw.toUpperCase(), name: raw };
+        // 미국/해외 티커 (ASCII 대문자)
+        if (/^[A-Z][A-Z0-9.\-]*$/.test(raw)) return { input: raw, ticker: raw, name: raw };
+        // 한국: 6자리 코드 또는 종목명
+        try {
+          let code = /^\d{6}$/.test(raw) ? raw : null;
+          let name = null;
+          if (!code) {
+            const r = await proxyRequest(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(raw)}&target=stock`);
+            const d = JSON.parse(r.data);
+            const item = (d.items || []).find(i => i.category === 'stock');
+            if (!item) return { input: raw, ticker: null, name: raw, error: '종목명 검색 실패' };
+            code = item.code;
+            name = item.name;
+          }
+          // 시장 구분 (KOSPI → .KS, KOSDAQ → .KQ)
+          let suffix = '.KS';
+          try {
+            const b = await proxyRequest(`https://m.stock.naver.com/api/stock/${code}/basic`);
+            const basic = JSON.parse(b.data);
+            const mktCode = basic?.stockExchangeType?.code || '';
+            const mktName = basic?.stockExchangeType?.nameEng || basic?.stockExchangeName || '';
+            if (mktCode === 'KQ' || /KOSDAQ/i.test(mktName)) suffix = '.KQ';
+            else if (mktCode === 'KS' || /KOSPI/i.test(mktName)) suffix = '.KS';
+          } catch { /* KOSPI 기본값 유지 */ }
+          return { input: raw, ticker: `${code}${suffix}`, name: name || raw };
+        } catch (e) {
+          return { input: raw, ticker: null, name: raw, error: e.message };
+        }
+      }));
+
+      const validTickers = resolutions.filter(r => r.ticker).map(r => r.ticker);
+      const failed = resolutions.filter(r => !r.ticker);
+
+      if (!validTickers.length) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          results: failed.map(f => ({
+            input: f.input, ticker: null, ok: false,
+            error: f.error || '티커 해석 실패',
+          })),
+          meta: { generated_at: new Date().toISOString() },
+        }));
+        return;
+      }
+
+      const capital = Number(payload.capital) || 10_000_000;
+      const riskPct = Number(payload.riskPct) || 0.01;
+      const noMtf = !!payload.noMtf;
+      const noBacktest = payload.noBacktest !== false;
+
+      const args = [
+        TRADING_SCRIPT,
+        '--tickers', validTickers.join(','),
+        '--capital', String(capital),
+        '--risk-pct', String(riskPct),
+        '--json',
+      ];
+      if (noMtf) args.push('--no-mtf');
+      if (noBacktest) args.push('--no-backtest');
+
+      const py = spawn(TRADING_PYTHON, args, {
+        env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      const timer = setTimeout(() => {
+        py.kill('SIGTERM');
+      }, 120_000);  // 2분 타임아웃
+
+      py.stdout.on('data', chunk => stdout += chunk.toString('utf-8'));
+      py.stderr.on('data', chunk => stderr += chunk.toString('utf-8'));
+      py.on('error', err => {
+        clearTimeout(timer);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          error: 'Python 실행 실패',
+          detail: err.message,
+          hint: 'TRADING_PYTHON 환경변수 또는 server.js 상단 경로 확인',
+        }));
+      });
+      py.on('close', code => {
+        clearTimeout(timer);
+        if (code !== 0) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            error: `Python 프로세스 비정상 종료 (exit ${code})`,
+            stderr: stderr.slice(-2000),
+          }));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(stdout);
+          // 해석 맵으로 원본 이름 복원 + 해석 실패 항목 병합
+          const tickerToRes = new Map(resolutions.filter(r => r.ticker).map(r => [r.ticker, r]));
+          const enriched = (parsed.results || []).map(row => {
+            const r = tickerToRes.get(row.ticker) || tickerToRes.get(row.input);
+            return { ...row, input: r?.input || row.input, display_name: r?.name || row.ticker };
+          });
+          const failedRows = failed.map(f => ({
+            input: f.input, ticker: null, ok: false,
+            error: f.error || '티커 해석 실패',
+            display_name: f.name || f.input,
+          }));
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            ...parsed,
+            results: [...enriched, ...failedRows],
+          }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            error: 'JSON 파싱 실패',
+            detail: e.message,
+            stdout_head: stdout.slice(0, 500),
+            stderr: stderr.slice(-2000),
+          }));
+        }
+      });
+    });
     return;
   }
 
