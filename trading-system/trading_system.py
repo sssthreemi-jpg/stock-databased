@@ -110,10 +110,74 @@ def ticker_from_name(name: str) -> Optional[str]:
 # =====================================================================
 # 2. DATA LAYER
 # =====================================================================
+_PERIOD_TO_DAYS = {
+    "3mo": 90, "6mo": 180, "1y": 365, "2y": 730, "3y": 1095, "5y": 1825,
+}
+_INTERVAL_TO_NAVER_TF = {"1d": "day", "1wk": "week", "1mo": "month"}
+
+
+def _fetch_naver_ohlcv(code: str, days: int = 365,
+                       timeframe: str = "day") -> pd.DataFrame:
+    """Naver Finance에서 한국 종목 OHLCV 로드.
+
+    yfinance는 클라우드 IP에서 .KS/.KQ 종목을 빈 응답으로 차단당하는 일이
+    잦으므로 한국 종목은 Naver를 우선 사용한다.
+    """
+    import ast
+    import datetime as _dt
+    import requests as _requests
+
+    end = _dt.datetime.now()
+    # 주봉/월봉의 경우 days만큼만 가져오면 봉이 부족하므로 여유 확보
+    start = end - _dt.timedelta(days=days + 60)
+    url = (
+        "https://api.finance.naver.com/siseJson.naver"
+        f"?symbol={code}&requestType=1"
+        f"&startTime={start:%Y%m%d}&endTime={end:%Y%m%d}"
+        f"&timeframe={timeframe}"
+    )
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0 Safari/537.36",
+        "Referer": f"https://finance.naver.com/item/main.naver?code={code}",
+    }
+    r = _requests.get(url, headers=headers, timeout=15)
+    r.raise_for_status()
+    text = r.text.strip()
+    if not text:
+        return pd.DataFrame()
+    # 응답은 JS 리터럴 형태 (single quotes). ast로 안전 파싱
+    data = ast.literal_eval(text)
+    if not isinstance(data, list) or len(data) < 2:
+        return pd.DataFrame()
+    rows = data[1:]  # 첫 행은 헤더
+    cols = ["Date", "Open", "High", "Low", "Close", "Volume"]
+    df = pd.DataFrame([row[:6] for row in rows], columns=cols)
+    df["Date"] = pd.to_datetime(df["Date"].astype(str), format="%Y%m%d")
+    df = df.set_index("Date").sort_index()
+    df = df[["Open", "High", "Low", "Close", "Volume"]].astype(float)
+    df = df[(df[["Open", "High", "Low", "Close"]] > 0).all(axis=1)]
+    return df
+
+
 def get_data(ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
-    """yfinance에서 OHLCV 로딩"""
+    """OHLCV 로딩 — 한국(.KS/.KQ)은 Naver, 그 외는 yfinance."""
+    # 한국 종목: Naver Finance 우선
+    if ticker.endswith((".KS", ".KQ")):
+        code = ticker.rsplit(".", 1)[0]
+        days = _PERIOD_TO_DAYS.get(period, 365)
+        tf = _INTERVAL_TO_NAVER_TF.get(interval, "day")
+        try:
+            df = _fetch_naver_ohlcv(code, days=days, timeframe=tf)
+            if not df.empty:
+                return df
+        except Exception as e:
+            print(f"[Naver fetch 실패] {ticker}: {e}", file=sys.stderr)
+        # Naver 실패 시 yfinance 폴백 (대개도 실패하지만 혹시 모를 가능성)
+
     if yf is None:
-        raise RuntimeError("yfinance 미설치: pip install yfinance")
+        raise RuntimeError("yfinance 미설치 + Naver 데이터 가져오기 실패")
     df = yf.download(ticker, period=period, interval=interval,
                      auto_adjust=False, progress=False)
     if df.empty:
