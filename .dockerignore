@@ -1,0 +1,15 @@
+.git
+.gitignore
+.claude
+node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+.env
+.env.*
+.naver_cookie
+*.log
+deploy.bat
+start-watch.bat
+watch.ps1

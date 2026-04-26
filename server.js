@@ -5,10 +5,18 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 // 트레이딩 시스템 Python 경로 (환경변수로 오버라이드 가능)
-const TRADING_PYTHON = process.env.TRADING_PYTHON ||
-  'C:\\Users\\이윤강\\trading-system\\venv\\Scripts\\python.exe';
-const TRADING_SCRIPT = process.env.TRADING_SCRIPT ||
-  'C:\\Users\\이윤강\\trading-system\\trading_system.py';
+// - Linux/Docker(Render): TRADING_PYTHON 환경변수로 venv python 지정
+// - Windows 로컬: 기본값으로 사용자 venv 경로 사용
+const TRADING_PYTHON = process.env.TRADING_PYTHON || (
+  process.platform === 'win32'
+    ? 'C:\\Users\\이윤강\\trading-system\\venv\\Scripts\\python.exe'
+    : 'python3'
+);
+const TRADING_SCRIPT = process.env.TRADING_SCRIPT || (
+  process.platform === 'win32'
+    ? 'C:\\Users\\이윤강\\trading-system\\trading_system.py'
+    : path.join(__dirname, 'trading-system', 'trading_system.py')
+);
 
 const PORT = process.env.PORT || 3000;
 
@@ -1720,7 +1728,9 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           error: 'Python 실행 실패',
           detail: err.message,
-          hint: 'TRADING_PYTHON 환경변수 또는 server.js 상단 경로 확인',
+          python_path: TRADING_PYTHON,
+          script_path: TRADING_SCRIPT,
+          hint: 'TRADING_PYTHON / TRADING_SCRIPT 환경변수 확인',
         }));
       });
       py.on('close', code => {
