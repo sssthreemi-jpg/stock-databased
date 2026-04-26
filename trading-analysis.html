@@ -193,11 +193,20 @@ analyzeBtn.addEventListener('click', async () => {
     });
     const d = await r.json();
     if (!r.ok) {
-      throw new Error(d.error || d.detail || '서버 오류');
+      const err = new Error(d.error || d.detail || '서버 오류');
+      err.diagnostic = d;
+      throw err;
     }
     renderResults(d);
   } catch (e) {
-    results.innerHTML = `<div class="error-card"><div class="ticker">분석 실패</div>${e.message}</div>`;
+    const diag = e.diagnostic || {};
+    const detailParts = [];
+    if (diag.detail) detailParts.push(`<div><b>detail:</b> ${diag.detail}</div>`);
+    if (diag.python_path) detailParts.push(`<div><b>python:</b> <code>${diag.python_path}</code></div>`);
+    if (diag.script_path) detailParts.push(`<div><b>script:</b> <code>${diag.script_path}</code></div>`);
+    if (diag.stderr) detailParts.push(`<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600">stderr (마지막 2KB)</summary><pre style="background:#fef2f2;padding:8px;border-radius:6px;font-size:11px;white-space:pre-wrap;max-height:300px;overflow:auto;margin-top:6px">${diag.stderr.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre></details>`);
+    if (diag.stdout_head) detailParts.push(`<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:600">stdout 처음 500B</summary><pre style="background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;white-space:pre-wrap">${diag.stdout_head.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre></details>`);
+    results.innerHTML = `<div class="error-card"><div class="ticker">분석 실패</div>${e.message}${detailParts.length ? '<div style="margin-top:10px;font-size:12px;color:#7f1d1d">' + detailParts.join('') + '</div>' : ''}</div>`;
     results.classList.add('active');
   } finally {
     loading.classList.remove('active');
