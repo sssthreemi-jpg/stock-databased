@@ -944,28 +944,30 @@ const server = http.createServer(async (req, res) => {
         roe = pn(infos.roe);
       }
 
-      // 분기 실적 파싱
-      let latestRevenue = 0, latestOp = 0, prevRevenue = 0, prevOp = 0, revPeriod = '';
+      // 분기 실적 파싱 (컨센서스 포함, 최신 2개 분기)
+      let latestRevenue = 0, latestOp = 0, prevRevenue = 0, prevOp = 0, revPeriod = '', revIsConsensus = false, prevRevIsConsensus = false;
       try {
         if (quarterData?.financeInfo) {
           const fi = quarterData.financeInfo;
-          const confirmed = (fi.trTitleList || [])
-            .filter(t => t.isConsensus === 'N').map(t => t.key).sort().reverse();
-          if (confirmed.length >= 1) {
-            const k1 = confirmed[0];
-            const t1 = fi.trTitleList.find(t => t.key === k1);
-            revPeriod = t1?.title || k1;
+          const sortedTitles = (fi.trTitleList || [])
+            .slice()
+            .sort((a, b) => String(b.key).localeCompare(String(a.key)));
+          if (sortedTitles.length >= 1) {
+            const t1 = sortedTitles[0];
+            revPeriod = t1.title || t1.key;
+            revIsConsensus = t1.isConsensus === 'Y';
             for (const row of (fi.rowList || [])) {
-              const col = row.columns?.[k1];
+              const col = row.columns?.[t1.key];
               if (!col) continue;
               if (row.title === '매출액') latestRevenue = pn(col.value);
               if (row.title === '영업이익') latestOp = pn(col.value);
             }
           }
-          if (confirmed.length >= 2) {
-            const k2 = confirmed[1];
+          if (sortedTitles.length >= 2) {
+            const t2 = sortedTitles[1];
+            prevRevIsConsensus = t2.isConsensus === 'Y';
             for (const row of (fi.rowList || [])) {
-              const col = row.columns?.[k2];
+              const col = row.columns?.[t2.key];
               if (!col) continue;
               if (row.title === '매출액') prevRevenue = pn(col.value);
               if (row.title === '영업이익') prevOp = pn(col.value);
@@ -1009,14 +1011,15 @@ const server = http.createServer(async (req, res) => {
       }
 
       // 5. 분기 실적 성장
+      const revLabel = revPeriod + (revIsConsensus ? ' (컨센서스)' : '');
       if (latestRevenue > 0 && prevRevenue > 0) {
         const revGrowth = ((latestRevenue - prevRevenue) / prevRevenue * 100).toFixed(1);
-        if (latestRevenue > prevRevenue) bull.push(`${revPeriod} 매출액 전분기 대비 +${revGrowth}% 증가 — 실적 성장세 확인`);
-        else bear.push(`${revPeriod} 매출액 전분기 대비 ${revGrowth}% 감소 — 실적 둔화 우려`);
+        if (latestRevenue > prevRevenue) bull.push(`${revLabel} 매출액 전분기 대비 +${revGrowth}% 증가 — 실적 성장세 확인`);
+        else bear.push(`${revLabel} 매출액 전분기 대비 ${revGrowth}% 감소 — 실적 둔화 우려`);
       }
       if (latestOp !== 0 && prevOp !== 0) {
         if (latestOp > prevOp && latestOp > 0) bull.push(`영업이익 전분기 대비 증가 (${latestOp.toLocaleString()}억원) — 수익성 개선 추세`);
-        else if (latestOp < 0) bear.push(`${revPeriod} 영업손실 ${Math.abs(latestOp).toLocaleString()}억원 — 흑자전환 여부 모니터링`);
+        else if (latestOp < 0) bear.push(`${revLabel} 영업손실 ${Math.abs(latestOp).toLocaleString()}억원 — 흑자전환 여부 모니터링`);
       }
 
       // 6. PBR/배당
@@ -1133,7 +1136,7 @@ const server = http.createServer(async (req, res) => {
       };
 
       // 재무 프로필
-      const profile = { eps, bps, divYield, roe, latestRevenue, latestOp, revPeriod };
+      const profile = { eps, bps, divYield, roe, latestRevenue, latestOp, revPeriod, revIsConsensus };
 
       const result = { code: stockCode, name: stockName, price, changeRate, marketCap, marketType, sector, per, pbr, high52, low52, headlines, profile, fundamental, analysis };
       aiReportCache.set(stockCode, { data: result, ts: Date.now() });

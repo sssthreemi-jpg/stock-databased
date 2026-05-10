@@ -740,9 +740,11 @@ function parseStockData(basic, integration, chartData, targetInfo, quarterData, 
     revenue: 0,         // 최근 분기 매출액 (억원)
     operatingProfit: 0,  // 최근 분기 영업이익 (억원)
     revenuePeriod: '',   // 분기 기간 (예: "2025.12.")
+    revenueIsConsensus: false, // 최근 분기가 컨센서스 추정치인지
     prevRevenue: 0,         // 직전 분기 매출액
     prevOperatingProfit: 0, // 직전 분기 영업이익
     prevRevenuePeriod: '',  // 직전 분기 기간
+    prevRevenueIsConsensus: false, // 직전 분기가 컨센서스 추정치인지
     market: '',             // KOSPI 또는 KOSDAQ
   };
 
@@ -797,34 +799,32 @@ function parseStockData(basic, integration, chartData, targetInfo, quarterData, 
     else if (op.includes('매도') || op.includes('비중축소')) stock.opinion = '매도';
   }
 
-  // 분기 실적 — 최근 2개 확정 분기 (isConsensus=N) 추출
+  // 분기 실적 — 컨센서스 포함, 최근 2개 분기 추출 (컨센서스 여부 플래그 보존)
   if (quarterData?.financeInfo) {
     const fi = quarterData.financeInfo;
-    const confirmedPeriods = (fi.trTitleList || [])
-      .filter(t => t.isConsensus === 'N')
-      .map(t => t.key)
-      .sort()
-      .reverse();
+    const sortedTitles = (fi.trTitleList || [])
+      .slice()
+      .sort((a, b) => String(b.key).localeCompare(String(a.key)));
 
     // 최근 분기
-    if (confirmedPeriods.length > 0) {
-      const latestKey = confirmedPeriods[0];
-      const titleObj = fi.trTitleList.find(t => t.key === latestKey);
-      stock.revenuePeriod = titleObj?.title || latestKey;
+    if (sortedTitles.length > 0) {
+      const t1 = sortedTitles[0];
+      stock.revenuePeriod = t1.title || t1.key;
+      stock.revenueIsConsensus = t1.isConsensus === 'Y';
       for (const row of (fi.rowList || [])) {
-        const col = row.columns?.[latestKey];
+        const col = row.columns?.[t1.key];
         if (!col) continue;
         if (row.title === '매출액') stock.revenue = parseNum(col.value);
         if (row.title === '영업이익') stock.operatingProfit = parseNum(col.value);
       }
     }
     // 직전 분기
-    if (confirmedPeriods.length > 1) {
-      const prevKey = confirmedPeriods[1];
-      const prevTitleObj = fi.trTitleList.find(t => t.key === prevKey);
-      stock.prevRevenuePeriod = prevTitleObj?.title || prevKey;
+    if (sortedTitles.length > 1) {
+      const t2 = sortedTitles[1];
+      stock.prevRevenuePeriod = t2.title || t2.key;
+      stock.prevRevenueIsConsensus = t2.isConsensus === 'Y';
       for (const row of (fi.rowList || [])) {
-        const col = row.columns?.[prevKey];
+        const col = row.columns?.[t2.key];
         if (!col) continue;
         if (row.title === '매출액') stock.prevRevenue = parseNum(col.value);
         if (row.title === '영업이익') stock.prevOperatingProfit = parseNum(col.value);
@@ -1399,8 +1399,9 @@ function renderTable(stocks) {
     };
     const opColor = s.operatingProfit > 0 ? 'change-down' : s.operatingProfit < 0 ? 'change-up' : '';
     const prevOpColor = s.prevOperatingProfit > 0 ? 'change-down' : s.prevOperatingProfit < 0 ? 'change-up' : '';
-    const pLabel = s.revenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.revenuePeriod}</span>` : '';
-    const ppLabel = s.prevRevenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.prevRevenuePeriod}</span>` : '';
+    const consensusBadge = `<span style="font-size:9px;font-weight:700;color:#92400e;background:#fef3c7;padding:1px 4px;border-radius:3px;margin-left:3px" title="컨센서스 추정치 (정식 실적 미발표)">E</span>`;
+    const pLabel = s.revenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.revenuePeriod}${s.revenueIsConsensus ? consensusBadge : ''}</span>` : '';
+    const ppLabel = s.prevRevenuePeriod ? `<br><span style="font-size:10px;color:#475569">${s.prevRevenuePeriod}${s.prevRevenueIsConsensus ? consensusBadge : ''}</span>` : '';
 
     return `<tr>
       <td><span class="stock-name" ondblclick="openReport('${s.code}','${s.name}')" title="더블클릭: AI 리포트">${s.name}</span><span class="stock-code">${s.code}</span><span style="font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;color:${s.market==='KOSDAQ'?'#2563eb':'#dc2626'};background:${s.market==='KOSDAQ'?'#eff6ff':'#fef2f2'}">${s.market}</span>${s.sector ? `<span class="sector-badge">${s.sector}</span>` : ''}${(() => { const theme = THEME_MAP[s.code] || SECTOR_THEME_MAP[s.sector] || ''; return theme ? `<span class="theme-badge">${theme}</span>` : ''; })()}</td>
