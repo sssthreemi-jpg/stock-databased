@@ -1548,15 +1548,18 @@ const server = http.createServer(async (req, res) => {
       const expectedReturn3 = price > 0 ? ((target3 - price) / price * 100) : 0;
       const expectedReturn4 = price > 0 ? ((target4 - price) / price * 100) : 0;
       const expectedLoss = price > 0 ? ((stopLoss - price) / price * 100) : 0;
-      const riskReward = Math.abs(expectedLoss) > 0 ? (expectedReturn1 / Math.abs(expectedLoss)) : 0;
+      // 손익비: 진입 전제(공격적 매수가) 기준 — (목표1 - 매수가) / (매수가 - 손절가)
+      const rrRisk = aggressiveBuy - stopLoss;
+      const rrReward = target1 - aggressiveBuy;
+      const riskReward = rrRisk > 0 ? +(rrReward / rrRisk).toFixed(2) : 0;
 
       // ── 종합 판단 ──
       let grade = '진입 금지';
       const buyScore = buySignals.length;
       const excludeScore = excludeSignals.length;
 
-      if (buyScore >= 3 && excludeScore === 0 && riskReward >= 1.2) grade = '강한 매수 후보';
-      else if (buyScore >= 2 && excludeScore <= 1 && riskReward >= 0.8) grade = '조건부 매수 후보';
+      if (buyScore >= 3 && excludeScore === 0 && riskReward >= 1.2 && trend !== '하락추세') grade = '강한 매수 후보';
+      else if (buyScore >= 2 && excludeScore <= 1 && riskReward >= 0.8 && trend !== '하락추세') grade = '조건부 매수 후보';
       else if (buyScore >= 1 && trend !== '하락추세') grade = '눌림 대기';
       else if (excludeScore <= 2) grade = '보유 관찰';
       else grade = '진입 금지';
